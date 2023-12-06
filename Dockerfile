@@ -28,6 +28,8 @@ COPY --from=builder /install /usr/local
 COPY ./bin/docker_entrypoint.sh /docker_entrypoint.sh
 COPY ./ /chroma
 
-EXPOSE 8000
+ENV PORT 8000
+
+EXPOSE $PORT
 
 CMD ["/docker_entrypoint.sh"]
