@@ -105,9 +105,9 @@ def test_url_resolve(
         _url.startswith("https") if ssl_enabled else _url.startswith("http")
     ), f"Invalid URL: {_url} - SSL Enabled: {ssl_enabled}"
     if hostname.startswith("http"):
-        assert ":" + str(port) not in _url, f"Port in URL not expected: {_url}"
+        assert f":{str(port)}" not in _url, f"Port in URL not expected: {_url}"
     else:
-        assert ":" + str(port) in _url, f"Port in URL expected: {_url}"
+        assert f":{str(port)}" in _url, f"Port in URL expected: {_url}"
     if default_api_path:
         assert _url.endswith(default_api_path), f"Invalid URL: {_url}"
 

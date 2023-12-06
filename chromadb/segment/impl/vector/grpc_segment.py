@@ -79,9 +79,9 @@ class GrpcVectorSegment(VectorReader, EnforceOverrides):
         response: QueryVectorsResponse = self._vector_reader_stub.QueryVectors(request)
         results: List[List[VectorQueryResult]] = []
         for result in response.results:
-            curr_result: List[VectorQueryResult] = []
-            for r in result.results:
-                curr_result.append(from_proto_vector_query_result(r))
+            curr_result: List[VectorQueryResult] = [
+                from_proto_vector_query_result(r) for r in result.results
+            ]
             results.append(curr_result)
         return results
 
@@ -96,9 +96,7 @@ class GrpcVectorSegment(VectorReader, EnforceOverrides):
     @staticmethod
     @override
     def propagate_collection_metadata(metadata: Metadata) -> Optional[Metadata]:
-        # Great example of why language sharing is nice.
-        segment_metadata = PersistentHnswParams.extract(metadata)
-        return segment_metadata
+        return PersistentHnswParams.extract(metadata)
 
     @override
     def delete(self) -> None:

@@ -6,10 +6,10 @@ topic_regex = r"persistent:\/\/(?P<tenant>.+)\/(?P<namespace>.+)\/(?P<topic>.+)"
 
 def parse_topic_name(topic_name: str) -> Tuple[str, str, str]:
     """Parse the topic name into the tenant, namespace and topic name"""
-    match = re.match(topic_regex, topic_name)
-    if not match:
+    if match := re.match(topic_regex, topic_name):
+        return match.group("tenant"), match.group("namespace"), match.group("topic")
+    else:
         raise ValueError(f"Invalid topic name: {topic_name}")
-    return match.group("tenant"), match.group("namespace"), match.group("topic")
 
 
 def create_pulsar_connection_str(host: str, port: str) -> str:

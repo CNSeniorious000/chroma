@@ -118,7 +118,7 @@ def configurations(versions: List[str]) -> List[Tuple[str, Settings]]:
                 chroma_segment_manager_impl="chromadb.segment.impl.manager.local.LocalSegmentManager",
                 allow_reset=True,
                 is_persistent=True,
-                persist_directory=tempfile.gettempdir() + "/persistence_test_chromadb",
+                persist_directory=f"{tempfile.gettempdir()}/persistence_test_chromadb",
             ),
         )
         for version in versions
@@ -126,7 +126,9 @@ def configurations(versions: List[str]) -> List[Tuple[str, Settings]]:
 
 
 test_old_versions = versions()
-base_install_dir = tempfile.gettempdir() + "/persistence_test_chromadb_versions"
+base_install_dir = (
+    f"{tempfile.gettempdir()}/persistence_test_chromadb_versions"
+)
 
 
 # This fixture is not shared with the rest of the tests because it is unique in how it
@@ -147,11 +149,11 @@ def version_settings(request) -> Generator[Tuple[str, Settings], None, None]:
 
 
 def get_path_to_version_install(version: str) -> str:
-    return base_install_dir + "/" + version
+    return f"{base_install_dir}/{version}"
 
 
 def get_path_to_version_library(version: str) -> str:
-    return get_path_to_version_install(version) + "/chromadb/__init__.py"
+    return f"{get_path_to_version_install(version)}/chromadb/__init__.py"
 
 
 def install_version(version: str) -> None:
@@ -176,7 +178,7 @@ def install(pkg: str, path: str) -> int:
             "-q",
             "install",
             pkg,
-            "--target={}".format(path),
+            f"--target={path}",
         ]
     )
 
@@ -188,9 +190,9 @@ def switch_to_version(version: str) -> ModuleType:
         n: m
         for n, m in sys.modules.items()
         if n == module_name
-        or (n.startswith(module_name + "."))
+        or n.startswith(f"{module_name}.")
         or n in VERSIONED_MODULES
-        or (any(n.startswith(m + ".") for m in VERSIONED_MODULES))
+        or any(n.startswith(f"{m}.") for m in VERSIONED_MODULES)
     }
     for n in old_modules:
         del sys.modules[n]

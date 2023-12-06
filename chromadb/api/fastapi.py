@@ -84,7 +84,9 @@ class FastAPI(ServerAPI):
         scheme = "https" if chroma_server_ssl_enabled else parsed.scheme or "http"
         net_loc = parsed.netloc or parsed.hostname or chroma_server_host
         port = (
-            ":" + str(parsed.port or chroma_server_http_port) if not _skip_port else ""
+            f":{str(parsed.port or chroma_server_http_port)}"
+            if not _skip_port
+            else ""
         )
         path = parsed.path or default_api_path
 
@@ -92,11 +94,16 @@ class FastAPI(ServerAPI):
             path = default_api_path if default_api_path else ""
         if not path.endswith(default_api_path or ""):
             path = path + default_api_path if default_api_path else ""
-        full_url = urlunparse(
-            (scheme, f"{net_loc}{port}", quote(path.replace("//", "/")), "", "", "")
+        return urlunparse(
+            (
+                scheme,
+                f"{net_loc}{port}",
+                quote(path.replace("//", "/")),
+                "",
+                "",
+                "",
+            )
         )
-
-        return full_url
 
     def __init__(self, system: System):
         super().__init__(system)
@@ -156,7 +163,7 @@ class FastAPI(ServerAPI):
     ) -> None:
         """Creates a database"""
         resp = self._session.post(
-            self._api_url + "/databases",
+            f"{self._api_url}/databases",
             data=json.dumps({"name": name}),
             params={"tenant": tenant},
         )
@@ -171,8 +178,7 @@ class FastAPI(ServerAPI):
     ) -> Database:
         """Returns a database"""
         resp = self._session.get(
-            self._api_url + "/databases/" + name,
-            params={"tenant": tenant},
+            f"{self._api_url}/databases/{name}", params={"tenant": tenant}
         )
         raise_chroma_error(resp)
         resp_json = resp.json()
@@ -184,17 +190,14 @@ class FastAPI(ServerAPI):
     @override
     def create_tenant(self, name: str) -> None:
         resp = self._session.post(
-            self._api_url + "/tenants",
-            data=json.dumps({"name": name}),
+            f"{self._api_url}/tenants", data=json.dumps({"name": name})
         )
         raise_chroma_error(resp)
 
     @trace_method("FastAPI.get_tenant", OpenTelemetryGranularity.OPERATION)
     @override
     def get_tenant(self, name: str) -> Tenant:
-        resp = self._session.get(
-            self._api_url + "/tenants/" + name,
-        )
+        resp = self._session.get(f"{self._api_url}/tenants/{name}")
         raise_chroma_error(resp)
         resp_json = resp.json()
         return Tenant(name=resp_json["name"])
@@ -206,16 +209,15 @@ class FastAPI(ServerAPI):
     ) -> Sequence[Collection]:
         """Returns a list of all collections"""
         resp = self._session.get(
-            self._api_url + "/collections",
+            f"{self._api_url}/collections",
             params={"tenant": tenant, "database": database},
         )
         raise_chroma_error(resp)
         json_collections = resp.json()
-        collections = []
-        for json_collection in json_collections:
-            collections.append(Collection(self, **json_collection))
-
-        return collections
+        return [
+            Collection(self, **json_collection)
+            for json_collection in json_collections
+        ]
 
     @trace_method("FastAPI.create_collection", OpenTelemetryGranularity.OPERATION)
     @override
@@ -233,7 +235,7 @@ class FastAPI(ServerAPI):
     ) -> Collection:
         """Creates a collection"""
         resp = self._session.post(
-            self._api_url + "/collections",
+            f"{self._api_url}/collections",
             data=json.dumps(
                 {
                     "name": name,
@@ -275,7 +277,8 @@ class FastAPI(ServerAPI):
         if id is not None:
             _params["type"] = str(id)
         resp = self._session.get(
-            self._api_url + "/collections/" + name if name else str(id), params=_params
+            f"{self._api_url}/collections/{name}" if name else str(id),
+            params=_params,
         )
         raise_chroma_error(resp)
         resp_json = resp.json()
@@ -326,7 +329,7 @@ class FastAPI(ServerAPI):
     ) -> None:
         """Updates a collection"""
         resp = self._session.put(
-            self._api_url + "/collections/" + str(id),
+            f"{self._api_url}/collections/{str(id)}",
             data=json.dumps({"new_metadata": new_metadata, "new_name": new_name}),
         )
         raise_chroma_error(resp)
@@ -341,7 +344,7 @@ class FastAPI(ServerAPI):
     ) -> None:
         """Deletes a collection"""
         resp = self._session.delete(
-            self._api_url + "/collections/" + name,
+            f"{self._api_url}/collections/{name}",
             params={"tenant": tenant, "database": database},
         )
         raise_chroma_error(resp)
@@ -354,7 +357,7 @@ class FastAPI(ServerAPI):
     ) -> int:
         """Returns the number of embeddings in the database"""
         resp = self._session.get(
-            self._api_url + "/collections/" + str(collection_id) + "/count"
+            f"{self._api_url}/collections/{str(collection_id)}/count"
         )
         raise_chroma_error(resp)
         return cast(int, resp.json())
@@ -395,7 +398,7 @@ class FastAPI(ServerAPI):
             limit = page_size
 
         resp = self._session.post(
-            self._api_url + "/collections/" + str(collection_id) + "/get",
+            f"{self._api_url}/collections/{str(collection_id)}/get",
             data=json.dumps(
                 {
                     "ids": ids,
@@ -431,7 +434,7 @@ class FastAPI(ServerAPI):
     ) -> IDs:
         """Deletes embeddings from the database"""
         resp = self._session.post(
-            self._api_url + "/collections/" + str(collection_id) + "/delete",
+            f"{self._api_url}/collections/{str(collection_id)}/delete",
             data=json.dumps(
                 {"where": where, "ids": ids, "where_document": where_document}
             ),
@@ -455,7 +458,7 @@ class FastAPI(ServerAPI):
         """
         Submits a batch of embeddings to the database
         """
-        resp = self._session.post(
+        return self._session.post(
             self._api_url + url,
             data=json.dumps(
                 {
@@ -467,7 +470,6 @@ class FastAPI(ServerAPI):
                 }
             ),
         )
-        return resp
 
     @trace_method("FastAPI._add", OpenTelemetryGranularity.ALL)
     @override
@@ -486,7 +488,7 @@ class FastAPI(ServerAPI):
         """
         batch = (ids, embeddings, metadatas, documents, uris)
         validate_batch(batch, {"max_batch_size": self.max_batch_size})
-        resp = self._submit_batch(batch, "/collections/" + str(collection_id) + "/add")
+        resp = self._submit_batch(batch, f"/collections/{str(collection_id)}/add")
         raise_chroma_error(resp)
         return True
 
@@ -507,9 +509,7 @@ class FastAPI(ServerAPI):
         """
         batch = (ids, embeddings, metadatas, documents, uris)
         validate_batch(batch, {"max_batch_size": self.max_batch_size})
-        resp = self._submit_batch(
-            batch, "/collections/" + str(collection_id) + "/update"
-        )
+        resp = self._submit_batch(batch, f"/collections/{str(collection_id)}/update")
         resp.raise_for_status()
         return True
 
@@ -530,9 +530,7 @@ class FastAPI(ServerAPI):
         """
         batch = (ids, embeddings, metadatas, documents, uris)
         validate_batch(batch, {"max_batch_size": self.max_batch_size})
-        resp = self._submit_batch(
-            batch, "/collections/" + str(collection_id) + "/upsert"
-        )
+        resp = self._submit_batch(batch, f"/collections/{str(collection_id)}/upsert")
         resp.raise_for_status()
         return True
 
@@ -549,7 +547,7 @@ class FastAPI(ServerAPI):
     ) -> QueryResult:
         """Gets the nearest neighbors of a single embedding"""
         resp = self._session.post(
-            self._api_url + "/collections/" + str(collection_id) + "/query",
+            f"{self._api_url}/collections/{str(collection_id)}/query",
             data=json.dumps(
                 {
                     "query_embeddings": query_embeddings,
@@ -578,7 +576,7 @@ class FastAPI(ServerAPI):
     @override
     def reset(self) -> bool:
         """Resets the database"""
-        resp = self._session.post(self._api_url + "/reset")
+        resp = self._session.post(f"{self._api_url}/reset")
         raise_chroma_error(resp)
         return cast(bool, resp.json())
 
@@ -586,7 +584,7 @@ class FastAPI(ServerAPI):
     @override
     def get_version(self) -> str:
         """Returns the version of the server"""
-        resp = self._session.get(self._api_url + "/version")
+        resp = self._session.get(f"{self._api_url}/version")
         raise_chroma_error(resp)
         return cast(str, resp.json())
 
@@ -600,7 +598,7 @@ class FastAPI(ServerAPI):
     @override
     def max_batch_size(self) -> int:
         if self._max_batch_size == -1:
-            resp = self._session.get(self._api_url + "/pre-flight-checks")
+            resp = self._session.get(f"{self._api_url}/pre-flight-checks")
             raise_chroma_error(resp)
             self._max_batch_size = cast(int, resp.json()["max_batch_size"])
         return self._max_batch_size

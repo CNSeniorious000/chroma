@@ -56,7 +56,7 @@ class CollectionAddEvent(ProductTelemetryEvent):
         return self.collection_uuid + self.name
 
     def batch(self, other: "ProductTelemetryEvent") -> "CollectionAddEvent":
-        if not self.batch_key == other.batch_key:
+        if self.batch_key != other.batch_key:
             raise ValueError("Cannot batch events")
         other = cast(CollectionAddEvent, other)
         total_amount = self.add_amount + other.add_amount
@@ -104,7 +104,7 @@ class CollectionUpdateEvent(ProductTelemetryEvent):
         return self.collection_uuid + self.name
 
     def batch(self, other: "ProductTelemetryEvent") -> "CollectionUpdateEvent":
-        if not self.batch_key == other.batch_key:
+        if self.batch_key != other.batch_key:
             raise ValueError("Cannot batch events")
         other = cast(CollectionUpdateEvent, other)
         total_amount = self.update_amount + other.update_amount
@@ -162,7 +162,7 @@ class CollectionQueryEvent(ProductTelemetryEvent):
         return self.collection_uuid + self.name
 
     def batch(self, other: "ProductTelemetryEvent") -> "CollectionQueryEvent":
-        if not self.batch_key == other.batch_key:
+        if self.batch_key != other.batch_key:
             raise ValueError("Cannot batch events")
         other = cast(CollectionQueryEvent, other)
         total_amount = self.query_amount + other.query_amount
@@ -214,7 +214,7 @@ class CollectionGetEvent(ProductTelemetryEvent):
         return self.collection_uuid + self.name + str(self.limit)
 
     def batch(self, other: "ProductTelemetryEvent") -> "CollectionGetEvent":
-        if not self.batch_key == other.batch_key:
+        if self.batch_key != other.batch_key:
             raise ValueError("Cannot batch events")
         other = cast(CollectionGetEvent, other)
         total_amount = self.ids_count + other.ids_count

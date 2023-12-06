@@ -97,8 +97,7 @@ class SharedSystemClient:
         """Create a client from an existing system. This is useful for testing and debugging."""
 
         SharedSystemClient._populate_data_from_system(system)
-        instance = cls(system.settings)
-        return instance
+        return cls(system.settings)
 
     @staticmethod
     def clear_system_cache() -> None:
@@ -158,8 +157,7 @@ class Client(SharedSystemClient, ClientAPI):
         database: str = DEFAULT_DATABASE,
     ) -> "Client":
         SharedSystemClient._populate_data_from_system(system)
-        instance = cls(tenant=tenant, database=database, settings=system.settings)
-        return instance
+        return cls(tenant=tenant, database=database, settings=system.settings)
 
     # endregion
 
@@ -478,5 +476,4 @@ class AdminClient(SharedSystemClient, AdminAPI):
         system: System,
     ) -> "AdminClient":
         SharedSystemClient._populate_data_from_system(system)
-        instance = cls(settings=system.settings)
-        return instance
+        return cls(settings=system.settings)

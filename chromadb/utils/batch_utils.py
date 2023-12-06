@@ -20,15 +20,15 @@ def create_batches(
     ] = []
     if len(ids) > api.max_batch_size:
         # create split batches
-        for i in range(0, len(ids), api.max_batch_size):
-            _batches.append(
-                (  # type: ignore
-                    ids[i : i + api.max_batch_size],
-                    embeddings[i : i + api.max_batch_size] if embeddings else None,
-                    metadatas[i : i + api.max_batch_size] if metadatas else None,
-                    documents[i : i + api.max_batch_size] if documents else None,
-                )
+        _batches.extend(
+            (
+                ids[i : i + api.max_batch_size],
+                embeddings[i : i + api.max_batch_size] if embeddings else None,
+                metadatas[i : i + api.max_batch_size] if metadatas else None,
+                documents[i : i + api.max_batch_size] if documents else None,
             )
+            for i in range(0, len(ids), api.max_batch_size)
+        )
     else:
         _batches.append((ids, embeddings, metadatas, documents))  # type: ignore
     return _batches

@@ -85,7 +85,7 @@ def _test_multithreaded_add(api: ServerAPI, N: int, D: int, num_workers: int) ->
 
     # Check that the ANN accuracy is good
     # On a random subset of the dataset
-    query_indices = random.sample([i for i in range(N)], 10)
+    query_indices = random.sample(list(range(N)), 10)
     n_results = 5
     invariants.ann_accuracy(
         coll,
@@ -115,14 +115,14 @@ def _test_interleaved_add_query(
     print(f"Adding {N} records with {D} dimensions on {num_workers} workers")
 
     def perform_operation(
-        operation: int, ids_to_modify: Optional[List[str]] = None
-    ) -> None:
+            operation: int, ids_to_modify: Optional[List[str]] = None
+        ) -> None:
         """Perform a random operation on the collection"""
         if operation == 0:
             assert ids_to_modify is not None
             indices_to_modify = [ids.index(id) for id in ids_to_modify]
             # Add a subset of the dataset
-            if len(indices_to_modify) == 0:
+            if not indices_to_modify:
                 return
             coll.add(
                 ids=ids_to_modify,
@@ -145,7 +145,7 @@ def _test_interleaved_add_query(
                 currently_added_ids = list(added_ids.copy())
             currently_added_indices = [ids.index(id) for id in currently_added_ids]
             if (
-                len(currently_added_ids) == 0
+                not currently_added_ids
                 or len(currently_added_indices) < n_results
             ):
                 return
@@ -199,7 +199,7 @@ def _test_interleaved_add_query(
     invariants.no_duplicates(coll)
     # Check that the ANN accuracy is good
     # On a random subset of the dataset
-    query_indices = random.sample([i for i in range(N)], 10)
+    query_indices = random.sample(list(range(N)), 10)
     n_results = 5
     invariants.ann_accuracy(
         coll,
@@ -210,14 +210,14 @@ def _test_interleaved_add_query(
 
 
 def test_multithreaded_add(api: ServerAPI) -> None:
-    for i in range(3):
+    for _ in range(3):
         num_workers = random.randint(2, multiprocessing.cpu_count() * 2)
         N, D = generate_data_shape()
         _test_multithreaded_add(api, N, D, num_workers)
 
 
 def test_interleaved_add_query(api: ServerAPI) -> None:
-    for i in range(3):
+    for _ in range(3):
         num_workers = random.randint(2, multiprocessing.cpu_count() * 2)
         N, D = generate_data_shape()
         _test_interleaved_add_query(api, N, D, num_workers)

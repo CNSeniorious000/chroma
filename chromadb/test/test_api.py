@@ -67,7 +67,7 @@ def approx_equal(a, b, tolerance=1e-6) -> bool:
 def vector_approx_equal(a, b, tolerance: float = 1e-6) -> bool:
     if len(a) != len(b):
         return False
-    return all([approx_equal(a, b, tolerance) for a, b in zip(a, b)])
+    return all(approx_equal(a, b, tolerance) for a, b in zip(a, b))
 
 
 @pytest.mark.parametrize("api_fixture", [local_persist_api])
@@ -476,7 +476,7 @@ def test_peek(api):
     # peek
     peek = collection.peek()
     for key in peek.keys():
-        if key in ["embeddings", "documents", "metadatas"] or key == "ids":
+        if key in ["embeddings", "documents", "metadatas", "ids"]:
             assert len(peek[key]) == 2
         else:
             assert peek[key] is None

@@ -166,7 +166,7 @@ def _exact_distances(
 def is_metadata_valid(normalized_record_set: NormalizedRecordSet) -> bool:
     if normalized_record_set["metadatas"] is None:
         return True
-    return not any([len(m) == 0 for m in normalized_record_set["metadatas"]])
+    return all(len(m) != 0 for m in normalized_record_set["metadatas"])
 
 
 def ann_accuracy(
@@ -205,11 +205,11 @@ def ann_accuracy(
         # This means that higher dimensions will have more noise, and thus more error.
         assert all(isinstance(e, list) for e in embeddings)
         dim = len(embeddings[0])
-        accuracy_threshold = accuracy_threshold * math.pow(10, int(math.log10(dim)))
+        accuracy_threshold *= math.pow(10, int(math.log10(dim)))
 
         if space == "cosine":
             distance_function = distance_functions.cosine
-        if space == "ip":
+        elif space == "ip":
             distance_function = distance_functions.ip
 
     # Perform exact distance computation

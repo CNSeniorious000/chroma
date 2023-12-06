@@ -365,7 +365,7 @@ class SqlEmbeddingsQueue(SqlDB, Producer, Consumer):
         # Log errors instead of throwing them to preserve async semantics
         # for consistency between local and distributed configurations
         try:
-            if len(filtered_embeddings) > 0:
+            if filtered_embeddings:
                 sub.callback(filtered_embeddings)
             if should_unsubscribe:
                 self.unsubscribe(sub.id)

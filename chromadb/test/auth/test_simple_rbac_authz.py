@@ -149,11 +149,10 @@ def rbac_config(draw: st.DrawFn) -> Dict[str, Any]:
     roles_mapping = {}
     for role in roles:
         roles_mapping.update(role)
-    _rbac_config = {
+    return {
         "roles_mapping": roles_mapping,
         "users": users,
     }
-    return _rbac_config
 
 
 @st.composite

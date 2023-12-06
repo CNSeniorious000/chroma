@@ -88,7 +88,7 @@ class DistributedSegmentManager(SegmentManager):
 
         if scope not in self._segment_cache[collection_id]:
             segments = self._sysdb.get_segments(collection=collection_id, scope=scope)
-            known_types = set([k.value for k in SEGMENT_TYPE_IMPLS.keys()])
+            known_types = {k.value for k in SEGMENT_TYPE_IMPLS.keys()}
             # Get the first segment of a known type
             segment = next(filter(lambda s: s["type"] in known_types, segments))
             grpc_url = self._segment_directory.get_segment_endpoint(segment)
@@ -124,7 +124,7 @@ class DistributedSegmentManager(SegmentManager):
                 segments = self._sysdb.get_segments(
                     collection=collection_id, scope=SegmentScope.VECTOR
                 )
-                known_types = set([k.value for k in SEGMENT_TYPE_IMPLS.keys()])
+                known_types = {k.value for k in SEGMENT_TYPE_IMPLS.keys()}
                 segment = next(filter(lambda s: s["type"] in known_types, segments))
                 # grpc_url = self._segment_directory.get_segment_endpoint(segment)
 
@@ -147,8 +147,7 @@ class DistributedSegmentManager(SegmentManager):
     # TODO: rethink duplication from local segment manager
     def _cls(self, segment: Segment) -> Type[SegmentImplementation]:
         classname = SEGMENT_TYPE_IMPLS[SegmentType(segment["type"])]
-        cls = get_class(classname, SegmentImplementation)
-        return cls
+        return get_class(classname, SegmentImplementation)
 
     def _instance(self, segment: Segment) -> SegmentImplementation:
         if segment["id"] not in self._instances:
@@ -163,11 +162,10 @@ class DistributedSegmentManager(SegmentManager):
 def _segment(type: SegmentType, scope: SegmentScope, collection: Collection) -> Segment:
     """Create a metadata dict, propagating metadata correctly for the given segment type."""
     cls = get_class(SEGMENT_TYPE_IMPLS[type], SegmentImplementation)
-    collection_metadata = collection.get("metadata", None)
-    metadata: Optional[Metadata] = None
-    if collection_metadata:
+    if collection_metadata := collection.get("metadata", None):
         metadata = cls.propagate_collection_metadata(collection_metadata)
-
+    else:
+        metadata = None
     return Segment(
         id=uuid4(),
         type=type.value,

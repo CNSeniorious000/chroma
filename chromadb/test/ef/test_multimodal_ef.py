@@ -41,10 +41,9 @@ def multimodal_collection(
     default_ef: EmbeddingFunction[Embeddable] = hashing_multimodal_ef(),
 ) -> Generator[chromadb.Collection, None, None]:
     client = chromadb.Client()
-    collection = client.create_collection(
+    yield client.create_collection(
         name="multimodal_collection", embedding_function=default_ef
     )
-    yield collection
     client.clear_system_cache()
 
 

@@ -75,9 +75,9 @@ class TokenAuthClientAuthResponse(ClientAuthResponse):
 
 
 def check_token(token: str) -> None:
-    token_str = str(token)
-    if not all(
-        c in string.digits + string.ascii_letters + string.punctuation
+    token_str = token
+    if any(
+        c not in string.digits + string.ascii_letters + string.punctuation
         for c in token_str
     ):
         raise ValueError("Invalid token. Must contain only ASCII letters and digits.")
@@ -151,10 +151,7 @@ class UserTokenConfigServerAuthCredentialsProvider(ServerAuthCredentialsProvider
                 self._token_user_mapping[token_str] = user["id"]
 
     def find_user_by_id(self, _user_id: str) -> Optional[User]:
-        for user in self._users:
-            if user["id"] == _user_id:
-                return user
-        return None
+        return next((user for user in self._users if user["id"] == _user_id), None)
 
     @override
     def validate_credentials(self, credentials: AbstractCredentials[T]) -> bool:

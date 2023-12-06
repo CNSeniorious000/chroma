@@ -67,8 +67,7 @@ class PersistentData:
     def load_from_file(filename: str) -> "PersistentData":
         """Load persistent data from a file"""
         with open(filename, "rb") as f:
-            ret = cast(PersistentData, pickle.load(f))
-            return ret
+            return cast(PersistentData, pickle.load(f))
 
 
 class PersistentLocalHnswSegment(LocalHnswSegment):
@@ -130,9 +129,7 @@ class PersistentLocalHnswSegment(LocalHnswSegment):
     @staticmethod
     @override
     def propagate_collection_metadata(metadata: Metadata) -> Optional[Metadata]:
-        # Extract relevant metadata
-        segment_metadata = PersistentHnswParams.extract(metadata)
-        return segment_metadata
+        return PersistentHnswParams.extract(metadata)
 
     def _index_exists(self) -> bool:
         """Check if the index exists via the metadata file"""
@@ -144,8 +141,7 @@ class PersistentLocalHnswSegment(LocalHnswSegment):
 
     def _get_storage_folder(self) -> str:
         """Get the storage folder path"""
-        folder = os.path.join(self._persist_directory, str(self._id))
-        return folder
+        return os.path.join(self._persist_directory, str(self._id))
 
     @trace_method(
         "PersistentLocalHnswSegment._init_index", OpenTelemetryGranularity.ALL
@@ -296,11 +292,9 @@ class PersistentLocalHnswSegment(LocalHnswSegment):
         """Get the embeddings from the HNSW index and layered brute force
         batch index."""
 
-        ids_hnsw: Set[str] = set()
         ids_bf: Set[str] = set()
 
-        if self._index is not None:
-            ids_hnsw = set(self._id_to_label.keys())
+        ids_hnsw = set(self._id_to_label.keys()) if self._index is not None else set()
         if self._brute_force_index is not None:
             ids_bf = set(self._curr_batch.get_written_ids())
 
@@ -320,7 +314,7 @@ class PersistentLocalHnswSegment(LocalHnswSegment):
                 results.append(None)
             id_to_index[id] = i
 
-        if len(hnsw_labels) > 0 and self._index is not None:
+        if hnsw_labels and self._index is not None:
             vectors = cast(Sequence[Vector], self._index.get_items(hnsw_labels))
 
             for label, vector in zip(hnsw_labels, vectors):
@@ -352,8 +346,7 @@ class PersistentLocalHnswSegment(LocalHnswSegment):
         # Overquery by updated and deleted elements layered on the index because they may
         # hide the real nearest neighbors in the hnsw index
         hnsw_k = k + self._curr_batch.update_count + self._curr_batch.delete_count
-        if hnsw_k > len(self._id_to_label):
-            hnsw_k = len(self._id_to_label)
+        hnsw_k = min(hnsw_k, len(self._id_to_label))
         hnsw_query = VectorQuery(
             vectors=query["vectors"],
             k=hnsw_k,
@@ -370,9 +363,6 @@ class PersistentLocalHnswSegment(LocalHnswSegment):
             bf_results = self._brute_force_index.query(query)
             hnsw_results = super().query_vectors(hnsw_query)
             for i in range(len(query["vectors"])):
-                # Merge results into a single list of size k
-                bf_pointer: int = 0
-                hnsw_pointer: int = 0
                 curr_bf_result: Sequence[VectorQueryResult] = bf_results[i]
                 curr_hnsw_result: Sequence[VectorQueryResult] = hnsw_results[i]
                 curr_results: List[VectorQueryResult] = []
@@ -382,41 +372,44 @@ class PersistentLocalHnswSegment(LocalHnswSegment):
                 if total_results == 0:
                     results.append([])
                 else:
+                    # Merge results into a single list of size k
+                    bf_pointer: int = 0
+                    hnsw_pointer: int = 0
                     while len(curr_results) < min(k, total_results):
-                        if bf_pointer < len(curr_bf_result) and hnsw_pointer < len(
-                            curr_hnsw_result
-                        ):
-                            bf_dist = curr_bf_result[bf_pointer]["distance"]
-                            hnsw_dist = curr_hnsw_result[hnsw_pointer]["distance"]
-                            if bf_dist <= hnsw_dist:
-                                curr_results.append(curr_bf_result[bf_pointer])
-                                bf_pointer += 1
-                            else:
-                                id = curr_hnsw_result[hnsw_pointer]["id"]
-                                # Only add the hnsw result if it is not in the brute force index
-                                # as updated or deleted
-                                if not self._brute_force_index.has_id(
-                                    id
-                                ) and not self._curr_batch.is_deleted(id):
-                                    curr_results.append(curr_hnsw_result[hnsw_pointer])
-                                hnsw_pointer += 1
-                        else:
+                        if bf_pointer >= len(
+                            curr_bf_result
+                        ) or hnsw_pointer >= len(curr_hnsw_result):
                             break
-                    remaining = min(k, total_results) - len(curr_results)
-                    if remaining > 0 and hnsw_pointer < len(curr_hnsw_result):
-                        for i in range(
-                            hnsw_pointer,
-                            min(len(curr_hnsw_result), hnsw_pointer + remaining + 1),
-                        ):
-                            id = curr_hnsw_result[i]["id"]
+                        bf_dist = curr_bf_result[bf_pointer]["distance"]
+                        hnsw_dist = curr_hnsw_result[hnsw_pointer]["distance"]
+                        if bf_dist <= hnsw_dist:
+                            curr_results.append(curr_bf_result[bf_pointer])
+                            bf_pointer += 1
+                        else:
+                            id = curr_hnsw_result[hnsw_pointer]["id"]
+                            # Only add the hnsw result if it is not in the brute force index
+                            # as updated or deleted
                             if not self._brute_force_index.has_id(
                                 id
                             ) and not self._curr_batch.is_deleted(id):
-                                curr_results.append(curr_hnsw_result[i])
-                    elif remaining > 0 and bf_pointer < len(curr_bf_result):
-                        curr_results.extend(
-                            curr_bf_result[bf_pointer : bf_pointer + remaining]
-                        )
+                                curr_results.append(curr_hnsw_result[hnsw_pointer])
+                            hnsw_pointer += 1
+                    remaining = min(k, total_results) - len(curr_results)
+                    if remaining > 0:
+                        if hnsw_pointer < len(curr_hnsw_result):
+                            for i in range(
+                                hnsw_pointer,
+                                min(len(curr_hnsw_result), hnsw_pointer + remaining + 1),
+                            ):
+                                id = curr_hnsw_result[i]["id"]
+                                if not self._brute_force_index.has_id(
+                                    id
+                                ) and not self._curr_batch.is_deleted(id):
+                                    curr_results.append(curr_hnsw_result[i])
+                        elif bf_pointer < len(curr_bf_result):
+                            curr_results.extend(
+                                curr_bf_result[bf_pointer : bf_pointer + remaining]
+                            )
                     results.append(curr_results)
             return results
 

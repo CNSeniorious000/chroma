@@ -92,15 +92,15 @@ class Batch:
                 self._deleted_ids.remove(id)
 
             # Update the add/update counts
-            if record["operation"] == Operation.UPSERT:
-                if not exists_already:
-                    self.add_count += 1
-                    self._upsert_add_ids.add(id)
-                else:
-                    self.update_count += 1
+            if record["operation"] == Operation.UPSERT and not exists_already:
+                self.add_count += 1
+                self._upsert_add_ids.add(id)
+            elif (
+                record["operation"] == Operation.UPSERT
+                or record["operation"] != Operation.ADD
+                and record["operation"] == Operation.UPDATE
+            ):
+                self.update_count += 1
             elif record["operation"] == Operation.ADD:
                 self.add_count += 1
-            elif record["operation"] == Operation.UPDATE:
-                self.update_count += 1
-
         self.max_seq_id = max(self.max_seq_id, record["seq_id"])

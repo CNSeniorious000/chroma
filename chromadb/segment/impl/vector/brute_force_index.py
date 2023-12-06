@@ -62,12 +62,10 @@ class BruteForceIndex:
     def upsert(self, records: List[EmbeddingRecord]) -> None:
         if len(records) + len(self) > self.size:
             raise Exception(
-                "Index with capacity {} and {} current entries cannot add {} records".format(
-                    self.size, len(self), len(records)
-                )
+                f"Index with capacity {self.size} and {len(self)} current entries cannot add {len(records)} records"
             )
 
-        for i, record in enumerate(records):
+        for record in records:
             id = record["id"]
             vector = record["embedding"]
             self.id_to_seq_id[id] = record["seq_id"]

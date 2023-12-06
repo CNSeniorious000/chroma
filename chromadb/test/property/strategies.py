@@ -246,7 +246,7 @@ def collections(
 ) -> Collection:
     """Strategy to generate a Collection object. If add_filterable_data is True, then known_metadata_keys and known_document_keywords will be populated with consistent data."""
 
-    assert not ((has_embeddings is False) and (has_documents is False))
+    assert has_embeddings is not False or has_documents is not False
 
     name = draw(collection_name())
     metadata = draw(collection_metadata)
@@ -289,9 +289,8 @@ def collections(
 
     if not has_documents:
         has_embeddings = True
-    else:
-        if has_embeddings is None:
-            has_embeddings = draw(st.booleans())
+    elif has_embeddings is None:
+        has_embeddings = draw(st.booleans())
     assert has_embeddings is not None
 
     embedding_function = draw(embedding_function_strategy(dimension, dtype))

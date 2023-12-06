@@ -193,11 +193,7 @@ class SqliteMetadataSegment(MetadataReader):
             elif float_value is not None:
                 metadata[key] = float_value
             elif bool_value is not None:
-                if bool_value == 1:
-                    metadata[key] = True
-                else:
-                    metadata[key] = False
-
+                metadata[key] = bool_value == 1
         return MetadataEmbeddingRecord(
             id=embedding_id,
             seq_id=_decode_seq_id(seq_id),
@@ -223,19 +219,17 @@ class SqliteMetadataSegment(MetadataReader):
             ParameterValue(_encode_seq_id(record["seq_id"])),
         )
         sql, params = get_sql(q)
-        sql = sql + "RETURNING id"
+        sql = f"{sql}RETURNING id"
         try:
             id = cur.execute(sql, params).fetchone()[0]
         except sqlite3.IntegrityError:
-            # Can't use INSERT OR REPLACE here because it changes the primary key.
             if upsert:
                 return self._update_record(cur, record)
-            else:
-                logger.warning(
-                    f"Insert of existing embedding ID: {record['id']}")
-                # We are trying to add for a record that already exists. Fail the call.
-                # We don't throw an exception since this is in principal an async path
-                return
+            logger.warning(
+                f"Insert of existing embedding ID: {record['id']}")
+            # We are trying to add for a record that already exists. Fail the call.
+            # We don't throw an exception since this is in principal an async path
+            return
 
         if record["metadata"]:
             self._update_metadata(cur, id, record["metadata"])
@@ -246,8 +240,7 @@ class SqliteMetadataSegment(MetadataReader):
     def _update_metadata(self, cur: Cursor, id: int, metadata: UpdateMetadata) -> None:
         """Update the metadata for a single EmbeddingRecord"""
         t = Table("embedding_metadata")
-        to_delete = [k for k, v in metadata.items() if v is None]
-        if to_delete:
+        if to_delete := [k for k, v in metadata.items() if v is None]:
             q = (
                 self._db.querybuilder()
                 .from_(t)
@@ -363,7 +356,7 @@ class SqliteMetadataSegment(MetadataReader):
             .delete()
         )
         sql, params = get_sql(q)
-        sql = sql + " RETURNING id"
+        sql = f"{sql} RETURNING id"
         result = cur.execute(sql, params).fetchone()
         if result is None:
             logger.warning(
@@ -395,15 +388,14 @@ class SqliteMetadataSegment(MetadataReader):
             .where(t.embedding_id == ParameterValue(record["id"]))
         )
         sql, params = get_sql(q)
-        sql = sql + " RETURNING id"
+        sql = f"{sql} RETURNING id"
         result = cur.execute(sql, params).fetchone()
         if result is None:
             logger.warning(
                 f"Update of nonexisting embedding ID: {record['id']}")
-        else:
+        elif record["metadata"]:
             id = result[0]
-            if record["metadata"]:
-                self._update_metadata(cur, id, record["metadata"])
+            self._update_metadata(cur, id, record["metadata"])
 
     @trace_method("SqliteMetadataSegment._write_metadata", OpenTelemetryGranularity.ALL)
     def _write_metadata(self, records: Sequence[EmbeddingRecord]) -> None:
@@ -521,9 +513,7 @@ def _encode_seq_id(seq_id: SeqId) -> bytes:
 
 def _decode_seq_id(seq_id_bytes: bytes) -> SeqId:
     """Decode a byte array into a SeqID"""
-    if len(seq_id_bytes) == 8:
-        return int.from_bytes(seq_id_bytes, "big")
-    elif len(seq_id_bytes) == 24:
+    if len(seq_id_bytes) in {8, 24}:
         return int.from_bytes(seq_id_bytes, "big")
     else:
         raise ValueError(f"Unknown SeqID type with length {len(seq_id_bytes)}")
@@ -557,7 +547,6 @@ def _value_criterion(
     and the operation type."""
     if isinstance(value, str):
         cols = [table.string_value]
-    # isinstance(True, int) evaluates to True, so we need to check for bools separately
     elif isinstance(value, bool) and op in ("$eq", "$ne"):
         cols = [table.bool_value]
     elif isinstance(value, int) and op in ("$eq", "$ne"):
@@ -592,15 +581,6 @@ def _value_criterion(
                 if op == "$in"
                 else table.float_value.notin(ParameterValue(_v))
             ]
-    elif isinstance(value, list) and op in ("$in", "$nin"):
-        col_exprs = [
-            table.int_value.isin(ParameterValue(value))
-            if op == "$in"
-            else table.int_value.notin(ParameterValue(value)),
-            table.float_value.isin(ParameterValue(value))
-            if op == "$in"
-            else table.float_value.notin(ParameterValue(value)),
-        ]
     else:
         cols = [table.int_value, table.float_value]
 

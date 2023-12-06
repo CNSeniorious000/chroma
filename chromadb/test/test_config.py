@@ -152,7 +152,7 @@ def test_system_override_order() -> None:
     random.seed(0)
     entries = list(system._instances.items())
     random.shuffle(entries)
-    system._instances = {k: v for k, v in entries}
+    system._instances = dict(entries)
 
     system.start()
     assert data.starts == ["D", "C", "B", "A"]

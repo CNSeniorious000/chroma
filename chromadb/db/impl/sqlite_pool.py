@@ -88,13 +88,12 @@ class LockPool(Pool):
         self._lock.acquire()
         if hasattr(self._connection, "conn") and self._connection.conn is not None:
             return self._connection.conn  # type: ignore # cast doesn't work here for some reason
-        else:
-            new_connection = Connection(
-                self, self._db_file, self._is_uri, *args, **kwargs
-            )
-            self._connection.conn = new_connection
-            self._connections.add(new_connection)
-            return new_connection
+        new_connection = Connection(
+            self, self._db_file, self._is_uri, *args, **kwargs
+        )
+        self._connection.conn = new_connection
+        self._connections.add(new_connection)
+        return new_connection
 
     @override
     def return_to_pool(self, conn: Connection) -> None:
@@ -137,14 +136,13 @@ class PerThreadPool(Pool):
     def connect(self, *args: Any, **kwargs: Any) -> Connection:
         if hasattr(self._connection, "conn") and self._connection.conn is not None:
             return self._connection.conn  # type: ignore # cast doesn't work here for some reason
-        else:
-            new_connection = Connection(
-                self, self._db_file, self._is_uri, *args, **kwargs
-            )
-            self._connection.conn = new_connection
-            with self._lock:
-                self._connections.add(new_connection)
-            return new_connection
+        new_connection = Connection(
+            self, self._db_file, self._is_uri, *args, **kwargs
+        )
+        self._connection.conn = new_connection
+        with self._lock:
+            self._connections.add(new_connection)
+        return new_connection
 
     @override
     def close(self) -> None:
