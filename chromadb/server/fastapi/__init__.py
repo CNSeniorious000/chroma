@@ -122,11 +122,7 @@ class ChromaAPIRouter(fastapi.APIRouter):  # type: ignore
         kwargs["include_in_schema"] = include_in_schema(path)
         super().add_api_route(path, *args, **kwargs)
 
-        if path.endswith("/"):
-            path = path[:-1]
-        else:
-            path = path + "/"
-
+        path = path[:-1] if path.endswith("/") else f"{path}/"
         kwargs["include_in_schema"] = include_in_schema(path)
         super().add_api_route(path, *args, **kwargs)
 
@@ -577,7 +573,7 @@ class FastAPI(chromadb.server.Server):
     def get_nearest_neighbors(
         self, collection_id: str, query: QueryEmbedding
     ) -> QueryResult:
-        nnresult = self._api._query(
+        return self._api._query(
             collection_id=_uuid(collection_id),
             where=query.where,  # type: ignore
             where_document=query.where_document,  # type: ignore
@@ -585,7 +581,6 @@ class FastAPI(chromadb.server.Server):
             n_results=query.n_results,
             include=query.include,
         )
-        return nnresult
 
     def pre_flight_checks(self) -> Dict[str, Any]:
         return {

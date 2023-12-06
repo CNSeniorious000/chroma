@@ -57,7 +57,7 @@ class HtpasswdServerAuthCredentialsProvider(ServerAuthCredentialsProvider):
             logger.error(
                 "Returned credentials do not contain username or password")
             return False
-        _usr_check = bool(
+        _usr_check = (
             _creds["username"].get_secret_value()
             == self._creds["username"].get_secret_value()
         )
@@ -81,7 +81,7 @@ class HtpasswdFileServerAuthCredentialsProvider(HtpasswdServerAuthCredentialsPro
         system.settings.require("chroma_server_auth_credentials_file")
         _file = str(system.settings.chroma_server_auth_credentials_file)
         with open(_file, "r") as f:
-            _raw_creds = [v for v in f.readline().strip().split(":")]
+            _raw_creds = list(f.readline().strip().split(":"))
             self._creds = {
                 "username": SecretStr(_raw_creds[0]),
                 "password": SecretStr(_raw_creds[1]),
@@ -165,20 +165,19 @@ class RequestsClientAuthProtocolAdapter(
 
     @override
     def inject_credentials(self, injection_context: requests.PreparedRequest) -> None:
-        if self._auth_header.get_auth_info_type() == AuthInfoType.HEADER:
-            _header_info = self._auth_header.get_auth_info()
-            if isinstance(_header_info, tuple):
-                injection_context.headers[_header_info[0]] = _header_info[
-                    1
-                ].get_secret_value()
-            else:
-                for header in _header_info:
-                    injection_context.headers[header[0]
-                                              ] = header[1].get_secret_value()
-        else:
+        if self._auth_header.get_auth_info_type() != AuthInfoType.HEADER:
             raise ValueError(
                 f"Unsupported auth type: {self._auth_header.get_auth_info_type()}"
             )
+        _header_info = self._auth_header.get_auth_info()
+        if isinstance(_header_info, tuple):
+            injection_context.headers[_header_info[0]] = _header_info[
+                1
+            ].get_secret_value()
+        else:
+            for header in _header_info:
+                injection_context.headers[header[0]
+                                          ] = header[1].get_secret_value()
 
 
 class ConfigurationClientAuthCredentialsProvider(

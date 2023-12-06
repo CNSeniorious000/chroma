@@ -81,8 +81,7 @@ def invalid_token(draw: st.DrawFn) -> str:
     opposite_alphabet = set(string.printable) - set(
         string.digits + string.ascii_letters + string.punctuation
     )
-    token = draw(st.text(alphabet=list(opposite_alphabet), min_size=1, max_size=50))
-    return token
+    return draw(st.text(alphabet=list(opposite_alphabet), min_size=1, max_size=50))
 
 
 @settings(max_examples=10)

@@ -74,12 +74,11 @@ class GrpcMockSysDB(SysDBServicer, Component):
     @overrides
     def reset_state(self) -> None:
         self._segments = {}
-        self._tenants_to_databases_to_collections = {}
-        # Create defaults
-        self._tenants_to_databases_to_collections[DEFAULT_TENANT] = {}
+        self._tenants_to_databases_to_collections = {DEFAULT_TENANT: {}}
         self._tenants_to_databases_to_collections[DEFAULT_TENANT][DEFAULT_DATABASE] = {}
-        self._tenants_to_database_to_id[DEFAULT_TENANT] = {}
-        self._tenants_to_database_to_id[DEFAULT_TENANT][DEFAULT_DATABASE] = UUID(int=0)
+        self._tenants_to_database_to_id[DEFAULT_TENANT] = {
+            DEFAULT_DATABASE: UUID(int=0)
+        }
         return super().reset_state()
 
     @overrides(check_signature=False)
@@ -173,15 +172,14 @@ class GrpcMockSysDB(SysDBServicer, Component):
         self, request: DeleteSegmentRequest, context: grpc.ServicerContext
     ) -> proto.ChromaResponse:
         id_to_delete = request.id
-        if id_to_delete in self._segments:
-            del self._segments[id_to_delete]
-            return proto.ChromaResponse(status=proto.Status(code=200))
-        else:
+        if id_to_delete not in self._segments:
             return proto.ChromaResponse(
                 status=proto.Status(
                     code=404, reason=f"Segment {id_to_delete} not found"
                 )
             )
+        del self._segments[id_to_delete]
+        return proto.ChromaResponse(status=proto.Status(code=200))
 
     @overrides(check_signature=False)
     def GetSegments(
@@ -227,24 +225,23 @@ class GrpcMockSysDB(SysDBServicer, Component):
                     code=404, reason=f"Segment {id_to_update} not found"
                 )
             )
-        else:
-            segment = self._segments[id_to_update.hex]
-            if request.HasField("topic"):
-                segment["topic"] = request.topic
-            if request.HasField("reset_topic") and request.reset_topic:
-                segment["topic"] = None
-            if request.HasField("collection"):
-                segment["collection"] = UUID(hex=request.collection)
-            if request.HasField("reset_collection") and request.reset_collection:
-                segment["collection"] = None
-            if request.HasField("metadata"):
-                target = cast(Dict[str, Any], segment["metadata"])
-                if segment["metadata"] is None:
-                    segment["metadata"] = {}
-                self._merge_metadata(target, request.metadata)
-            if request.HasField("reset_metadata") and request.reset_metadata:
+        segment = self._segments[id_to_update.hex]
+        if request.HasField("topic"):
+            segment["topic"] = request.topic
+        if request.HasField("reset_topic") and request.reset_topic:
+            segment["topic"] = None
+        if request.HasField("collection"):
+            segment["collection"] = UUID(hex=request.collection)
+        if request.HasField("reset_collection") and request.reset_collection:
+            segment["collection"] = None
+        if request.HasField("metadata"):
+            target = cast(Dict[str, Any], segment["metadata"])
+            if segment["metadata"] is None:
                 segment["metadata"] = {}
-            return proto.ChromaResponse(status=proto.Status(code=200))
+            self._merge_metadata(target, request.metadata)
+        if request.HasField("reset_metadata") and request.reset_metadata:
+            segment["metadata"] = {}
+        return proto.ChromaResponse(status=proto.Status(code=200))
 
     @overrides(check_signature=False)
     def CreateCollection(
@@ -293,7 +290,7 @@ class GrpcMockSysDB(SysDBServicer, Component):
         collections = self._tenants_to_databases_to_collections[tenant][database]
         matches = [c for c in collections.values() if c["name"] == collection_name]
         assert len(matches) <= 1
-        if len(matches) > 0:
+        if matches:
             if request.get_or_create:
                 existing_collection = matches[0]
                 if request.HasField("metadata"):
@@ -344,15 +341,14 @@ class GrpcMockSysDB(SysDBServicer, Component):
                 status=proto.Status(code=404, reason=f"Database {database} not found")
             )
         collections = self._tenants_to_databases_to_collections[tenant][database]
-        if collection_id in collections:
-            del collections[collection_id]
-            return proto.ChromaResponse(status=proto.Status(code=200))
-        else:
+        if collection_id not in collections:
             return proto.ChromaResponse(
                 status=proto.Status(
                     code=404, reason=f"Collection {collection_id} not found"
                 )
             )
+        del collections[collection_id]
+        return proto.ChromaResponse(status=proto.Status(code=200))
 
     @overrides(check_signature=False)
     def GetCollections(
@@ -407,33 +403,34 @@ class GrpcMockSysDB(SysDBServicer, Component):
                     code=404, reason=f"Collection {id_to_update} not found"
                 )
             )
-        else:
-            collection = collections[id_to_update.hex]
-            if request.HasField("topic"):
-                collection["topic"] = request.topic
-            if request.HasField("name"):
-                collection["name"] = request.name
-            if request.HasField("dimension"):
-                collection["dimension"] = request.dimension
-            if request.HasField("metadata"):
-                # TODO: IN SysDB SQlite we have technical debt where we
-                # replace the entire metadata dict with the new one. We should
-                # fix that by merging it. For now we just do the same thing here
+        collection = collections[id_to_update.hex]
+        if request.HasField("topic"):
+            collection["topic"] = request.topic
+        if request.HasField("name"):
+            collection["name"] = request.name
+        if request.HasField("dimension"):
+            collection["dimension"] = request.dimension
+        if request.HasField("metadata"):
+            # TODO: IN SysDB SQlite we have technical debt where we
+            # replace the entire metadata dict with the new one. We should
+            # fix that by merging it. For now we just do the same thing here
 
-                update_metadata = from_proto_update_metadata(request.metadata)
-                cleaned_metadata = None
-                if update_metadata is not None:
-                    cleaned_metadata = {}
-                    for key, value in update_metadata.items():
-                        if value is not None:
-                            cleaned_metadata[key] = value
+            update_metadata = from_proto_update_metadata(request.metadata)
+            cleaned_metadata = (
+                {
+                    key: value
+                    for key, value in update_metadata.items()
+                    if value is not None
+                }
+                if update_metadata is not None
+                else None
+            )
+            collection["metadata"] = cleaned_metadata
+        elif request.HasField("reset_metadata"):
+            if request.reset_metadata:
+                collection["metadata"] = {}
 
-                collection["metadata"] = cleaned_metadata
-            elif request.HasField("reset_metadata"):
-                if request.reset_metadata:
-                    collection["metadata"] = {}
-
-            return proto.ChromaResponse(status=proto.Status(code=200))
+        return proto.ChromaResponse(status=proto.Status(code=200))
 
     @overrides(check_signature=False)
     def ResetState(

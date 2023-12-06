@@ -45,8 +45,7 @@ class TenantDatabaseCollectionStateMachine(CollectionStateMachine):
         self.curr_tenant = DEFAULT_TENANT
         self.curr_database = DEFAULT_DATABASE
         self.api.set_tenant(DEFAULT_TENANT, DEFAULT_DATABASE)
-        self.tenant_to_database_to_model[self.curr_tenant] = {}
-        self.tenant_to_database_to_model[self.curr_tenant][self.curr_database] = {}
+        self.tenant_to_database_to_model[self.curr_tenant] = {self.curr_database: {}}
 
     @rule(target=tenants, name=strategies.tenant_database_name)
     def create_tenant(self, name: str) -> MultipleResults[str]:
@@ -61,8 +60,7 @@ class TenantDatabaseCollectionStateMachine(CollectionStateMachine):
         # since the state machine could call collection operations before creating a
         # database
         self.admin_client.create_database(DEFAULT_DATABASE, tenant=name)
-        self.tenant_to_database_to_model[name] = {}
-        self.tenant_to_database_to_model[name][DEFAULT_DATABASE] = {}
+        self.tenant_to_database_to_model[name] = {DEFAULT_DATABASE: {}}
         return multiple(name)
 
     @rule(target=databases, name=strategies.tenant_database_name)

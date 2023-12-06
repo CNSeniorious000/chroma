@@ -207,10 +207,11 @@ class CohereEmbeddingFunction(EmbeddingFunction[Documents]):
 
     def __call__(self, input: Documents) -> Embeddings:
         # Call Cohere Embedding API for each document.
-        return [
-            embeddings
-            for embeddings in self._client.embed(texts=input, model=self._model_name, input_type="search_document")
-        ]
+        return list(
+            self._client.embed(
+                texts=input, model=self._model_name, input_type="search_document"
+            )
+        )
 
 
 class HuggingFaceEmbeddingFunction(EmbeddingFunction[Documents]):
@@ -356,7 +357,7 @@ class ONNXMiniLM_L6_V2(EmbeddingFunction[Documents]):
         # breaks typechecking, thus the ignores.
         # convert the list to set for unique values
         if preferred_providers and not all(
-            [isinstance(i, str) for i in preferred_providers]
+            isinstance(i, str) for i in preferred_providers
         ):
             raise ValueError("Preferred providers must be a list of strings")
         # check for duplicate providers
@@ -392,13 +393,7 @@ class ONNXMiniLM_L6_V2(EmbeddingFunction[Documents]):
     def _download(self, url: str, fname: str, chunk_size: int = 1024) -> None:
         resp = requests.get(url, stream=True)
         total = int(resp.headers.get("content-length", 0))
-        with open(fname, "wb") as file, self.tqdm(
-            desc=str(fname),
-            total=total,
-            unit="iB",
-            unit_scale=True,
-            unit_divisor=1024,
-        ) as bar:
+        with (open(fname, "wb") as file, self.tqdm(desc=fname, total=total, unit="iB", unit_scale=True, unit_divisor=1024) as bar):
             for data in resp.iter_content(chunk_size=chunk_size):
                 size = file.write(data)
                 bar.update(size)
@@ -443,45 +438,45 @@ class ONNXMiniLM_L6_V2(EmbeddingFunction[Documents]):
         return np.concatenate(all_embeddings)
 
     def _init_model_and_tokenizer(self) -> None:
-        if self.model is None and self.tokenizer is None:
-            self.tokenizer = self.Tokenizer.from_file(
-                os.path.join(
-                    self.DOWNLOAD_PATH, self.EXTRACTED_FOLDER_NAME, "tokenizer.json"
-                )
+        if self.model is not None or self.tokenizer is not None:
+            return
+        self.tokenizer = self.Tokenizer.from_file(
+            os.path.join(
+                self.DOWNLOAD_PATH, self.EXTRACTED_FOLDER_NAME, "tokenizer.json"
             )
-            # max_seq_length = 256, for some reason sentence-transformers uses 256 even though the HF config has a max length of 128
-            # https://github.com/UKPLab/sentence-transformers/blob/3e1929fddef16df94f8bc6e3b10598a98f46e62d/docs/_static/html/models_en_sentence_embeddings.html#LL480
-            self.tokenizer.enable_truncation(max_length=256)
-            self.tokenizer.enable_padding(pad_id=0, pad_token="[PAD]", length=256)
+        )
+        # max_seq_length = 256, for some reason sentence-transformers uses 256 even though the HF config has a max length of 128
+        # https://github.com/UKPLab/sentence-transformers/blob/3e1929fddef16df94f8bc6e3b10598a98f46e62d/docs/_static/html/models_en_sentence_embeddings.html#LL480
+        self.tokenizer.enable_truncation(max_length=256)
+        self.tokenizer.enable_padding(pad_id=0, pad_token="[PAD]", length=256)
 
-            if self._preferred_providers is None or len(self._preferred_providers) == 0:
-                if len(self.ort.get_available_providers()) > 0:
-                    logger.debug(
-                        f"WARNING: No ONNX providers provided, defaulting to available providers: "
-                        f"{self.ort.get_available_providers()}"
-                    )
-                self._preferred_providers = self.ort.get_available_providers()
-            elif not set(self._preferred_providers).issubset(
-                set(self.ort.get_available_providers())
-            ):
-                raise ValueError(
-                    f"Preferred providers must be subset of available providers: {self.ort.get_available_providers()}"
+        if self._preferred_providers is None or len(self._preferred_providers) == 0:
+            if len(self.ort.get_available_providers()) > 0:
+                logger.debug(
+                    f"WARNING: No ONNX providers provided, defaulting to available providers: "
+                    f"{self.ort.get_available_providers()}"
                 )
-            self.model = self.ort.InferenceSession(
-                os.path.join(
-                    self.DOWNLOAD_PATH, self.EXTRACTED_FOLDER_NAME, "model.onnx"
-                ),
-                # Since 1.9 onnyx runtime requires providers to be specified when there are multiple available - https://onnxruntime.ai/docs/api/python/api_summary.html
-                # This is probably not ideal but will improve DX as no exceptions will be raised in multi-provider envs
-                providers=self._preferred_providers,
+            self._preferred_providers = self.ort.get_available_providers()
+        elif not set(self._preferred_providers).issubset(
+            set(self.ort.get_available_providers())
+        ):
+            raise ValueError(
+                f"Preferred providers must be subset of available providers: {self.ort.get_available_providers()}"
             )
+        self.model = self.ort.InferenceSession(
+            os.path.join(
+                self.DOWNLOAD_PATH, self.EXTRACTED_FOLDER_NAME, "model.onnx"
+            ),
+            # Since 1.9 onnyx runtime requires providers to be specified when there are multiple available - https://onnxruntime.ai/docs/api/python/api_summary.html
+            # This is probably not ideal but will improve DX as no exceptions will be raised in multi-provider envs
+            providers=self._preferred_providers,
+        )
 
     def __call__(self, input: Documents) -> Embeddings:
         # Only download the model when it is actually used
         self._download_model_if_not_exists()
         self._init_model_and_tokenizer()
-        res = cast(Embeddings, self._forward(input).tolist())
-        return res
+        return cast(Embeddings, self._forward(input).tolist())
 
     def _download_model_if_not_exists(self) -> None:
         onnx_files = [
@@ -493,11 +488,9 @@ class ONNXMiniLM_L6_V2(EmbeddingFunction[Documents]):
             "vocab.txt",
         ]
         extracted_folder = os.path.join(self.DOWNLOAD_PATH, self.EXTRACTED_FOLDER_NAME)
-        onnx_files_exist = True
-        for f in onnx_files:
-            if not os.path.exists(os.path.join(extracted_folder, f)):
-                onnx_files_exist = False
-                break
+        onnx_files_exist = all(
+            os.path.exists(os.path.join(extracted_folder, f)) for f in onnx_files
+        )
         # Model is not downloaded yet
         if not onnx_files_exist:
             os.makedirs(self.DOWNLOAD_PATH, exist_ok=True)
@@ -516,10 +509,7 @@ class ONNXMiniLM_L6_V2(EmbeddingFunction[Documents]):
 
 
 def DefaultEmbeddingFunction() -> Optional[EmbeddingFunction[Documents]]:
-    if is_thin_client:
-        return None
-    else:
-        return ONNXMiniLM_L6_V2()
+    return None if is_thin_client else ONNXMiniLM_L6_V2()
 
 
 class GooglePalmEmbeddingFunction(EmbeddingFunction[Documents]):

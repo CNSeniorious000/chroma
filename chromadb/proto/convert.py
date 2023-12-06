@@ -115,7 +115,7 @@ def from_proto_submit(
     submit_embedding_record: proto.SubmitEmbeddingRecord, seq_id: SeqId
 ) -> EmbeddingRecord:
     embedding, encoding = from_proto_vector(submit_embedding_record.vector)
-    record = EmbeddingRecord(
+    return EmbeddingRecord(
         id=submit_embedding_record.id,
         seq_id=seq_id,
         embedding=embedding,
@@ -124,7 +124,6 @@ def from_proto_submit(
         operation=from_proto_operation(submit_embedding_record.operation),
         collection_id=UUID(hex=submit_embedding_record.collection_id),
     )
-    return record
 
 
 def from_proto_segment(segment: proto.Segment) -> Segment:

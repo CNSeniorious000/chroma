@@ -188,7 +188,7 @@ def _parse_migration_filename(
     """Parse a migration filename into a MigrationFile object"""
     match = filename_regex.match(filename)
     if match is None:
-        raise InvalidMigrationFilename("Invalid migration filename: " + filename)
+        raise InvalidMigrationFilename(f"Invalid migration filename: {filename}")
     version, _, scope = match.groups()
     return {
         "path": path,

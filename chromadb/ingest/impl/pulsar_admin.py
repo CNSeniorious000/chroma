@@ -29,7 +29,7 @@ class PulsarAdmin:
             url, json={"allowedClusters": ["standalone"], "adminRoles": []}
         )  # TODO: how to manage clusters?
 
-        if response.status_code != 204 and response.status_code != 409:
+        if response.status_code not in [204, 409]:
             raise RuntimeError(f"Failed to create tenant {tenant}")
 
     def create_namespace(self, tenant: str, namespace: str) -> None:
@@ -39,7 +39,7 @@ class PulsarAdmin:
         url = self._connection_str + path
         response = requests.put(url)
 
-        if response.status_code != 204 and response.status_code != 409:
+        if response.status_code not in [204, 409]:
             raise RuntimeError(f"Failed to create namespace {namespace}")
 
     def create_topic(self, topic: str) -> None:
@@ -58,7 +58,7 @@ class PulsarAdmin:
         url = self._connection_str + path
         response = requests.put(url)
 
-        if response.status_code != 204 and response.status_code != 409:
+        if response.status_code not in [204, 409]:
             raise RuntimeError(f"Failed to create topic {topic_name}")
 
     def delete_topic(self, topic: str) -> None:
@@ -77,5 +77,5 @@ class PulsarAdmin:
         path += "?force=true"
         url = self._connection_str + path
         response = requests.delete(url)
-        if response.status_code != 204 and response.status_code != 409:
+        if response.status_code not in [204, 409]:
             raise RuntimeError(f"Failed to delete topic {topic_name}")

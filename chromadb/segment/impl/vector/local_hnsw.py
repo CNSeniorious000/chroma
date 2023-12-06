@@ -76,9 +76,7 @@ class LocalHnswSegment(VectorReader):
     @staticmethod
     @override
     def propagate_collection_metadata(metadata: Metadata) -> Optional[Metadata]:
-        # Extract relevant metadata
-        segment_metadata = HnswParams.extract(metadata)
-        return segment_metadata
+        return HnswParams.extract(metadata)
 
     @trace_method("LocalHnswSegment.start", OpenTelemetryGranularity.ALL)
     @override
@@ -105,11 +103,7 @@ class LocalHnswSegment(VectorReader):
         if ids is None:
             labels = list(self._label_to_id.keys())
         else:
-            labels = []
-            for id in ids:
-                if id in self._id_to_label:
-                    labels.append(self._id_to_label[id])
-
+            labels = [self._id_to_label[id] for id in ids if id in self._id_to_label]
         results = []
         if self._index is not None:
             vectors = cast(Sequence[Vector], self._index.get_items(labels))
@@ -217,12 +211,11 @@ class LocalHnswSegment(VectorReader):
         if not self._index:
             self._dimensionality = dim
             self._init_index(dim)
-        else:
-            if dim != self._dimensionality:
-                raise InvalidDimensionException(
-                    f"Dimensionality of ({dim}) does not match index"
-                    + f"dimensionality ({self._dimensionality})"
-                )
+        elif dim != self._dimensionality:
+            raise InvalidDimensionException(
+                f"Dimensionality of ({dim}) does not match index"
+                + f"dimensionality ({self._dimensionality})"
+            )
 
         index = cast(hnswlib.Index, self._index)
 

@@ -249,15 +249,14 @@ def fastapi_server_basic_auth() -> Generator[System, None, None]:
     server_auth_file = os.path.abspath(os.path.join(".", "server.htpasswd"))
     with open(server_auth_file, "w") as f:
         f.write("admin:$2y$05$e5sRb6NCcSH3YfbIxe1AGu2h5K7OOd982OXKmd8WyQ3DRQ4MvpnZS\n")
-    for item in _fastapi_fixture(
+    yield from _fastapi_fixture(
         is_persistent=False,
         chroma_server_auth_provider="chromadb.auth.basic.BasicAuthServerProvider",
         chroma_server_auth_credentials_provider="chromadb.auth.providers.HtpasswdFileServerAuthCredentialsProvider",
         chroma_server_auth_credentials_file="./server.htpasswd",
         chroma_client_auth_provider="chromadb.auth.basic.BasicAuthClientProvider",
         chroma_client_auth_credentials="admin:admin",
-    ):
-        yield item
+    )
     os.remove(server_auth_file)
 
 
@@ -265,15 +264,14 @@ def fastapi_server_basic_auth_param() -> Generator[System, None, None]:
     server_auth_file = os.path.abspath(os.path.join(".", "server.htpasswd"))
     with open(server_auth_file, "w") as f:
         f.write("admin:$2y$05$e5sRb6NCcSH3YfbIxe1AGu2h5K7OOd982OXKmd8WyQ3DRQ4MvpnZS\n")
-    for item in _fastapi_fixture(
+    yield from _fastapi_fixture(
         is_persistent=False,
         chroma_server_auth_provider="chromadb.auth.basic.BasicAuthServerProvider",
         chroma_server_auth_credentials_provider="chromadb.auth.providers.HtpasswdFileServerAuthCredentialsProvider",
         chroma_server_auth_credentials_file="./server.htpasswd",
         chroma_client_auth_provider="chromadb.auth.basic.BasicAuthClientProvider",
         chroma_client_auth_credentials="admin:admin",
-    ):
-        yield item
+    )
     os.remove(server_auth_file)
 
 
@@ -282,15 +280,14 @@ def fastapi_server_basic_auth_file() -> Generator[System, None, None]:
     server_auth_file = os.path.abspath(os.path.join(".", "server.htpasswd"))
     with open(server_auth_file, "w") as f:
         f.write("admin:$2y$05$e5sRb6NCcSH3YfbIxe1AGu2h5K7OOd982OXKmd8WyQ3DRQ4MvpnZS\n")
-    for item in _fastapi_fixture(
+    yield from _fastapi_fixture(
         is_persistent=False,
         chroma_server_auth_provider="chromadb.auth.basic.BasicAuthServerProvider",
         chroma_server_auth_credentials_provider="chromadb.auth.providers.HtpasswdFileServerAuthCredentialsProvider",
         chroma_server_auth_credentials_file="./server.htpasswd",
         chroma_client_auth_provider="chromadb.auth.basic.BasicAuthClientProvider",
         chroma_client_auth_credentials="admin:admin",
-    ):
-        yield item
+    )
     os.remove(server_auth_file)
 
 
@@ -298,15 +295,14 @@ def fastapi_server_basic_auth_shorthand() -> Generator[System, None, None]:
     server_auth_file = os.path.abspath(os.path.join(".", "server.htpasswd"))
     with open(server_auth_file, "w") as f:
         f.write("admin:$2y$05$e5sRb6NCcSH3YfbIxe1AGu2h5K7OOd982OXKmd8WyQ3DRQ4MvpnZS\n")
-    for item in _fastapi_fixture(
+    yield from _fastapi_fixture(
         is_persistent=False,
         chroma_server_auth_provider="basic",
         chroma_server_auth_credentials_provider="htpasswd_file",
         chroma_server_auth_credentials_file="./server.htpasswd",
         chroma_client_auth_provider="basic",
         chroma_client_auth_credentials="admin:admin",
-    ):
-        yield item
+    )
     os.remove(server_auth_file)
 
 
@@ -314,15 +310,14 @@ def fastapi_server_basic_auth_invalid_cred() -> Generator[System, None, None]:
     server_auth_file = os.path.abspath(os.path.join(".", "server.htpasswd"))
     with open(server_auth_file, "w") as f:
         f.write("admin:$2y$05$e5sRb6NCcSH3YfbIxe1AGu2h5K7OOd982OXKmd8WyQ3DRQ4MvpnZS\n")
-    for item in _fastapi_fixture(
+    yield from _fastapi_fixture(
         is_persistent=False,
         chroma_server_auth_provider="chromadb.auth.basic.BasicAuthServerProvider",
         chroma_server_auth_credentials_provider="chromadb.auth.providers.HtpasswdFileServerAuthCredentialsProvider",
         chroma_server_auth_credentials_file="./server.htpasswd",
         chroma_client_auth_provider="chromadb.auth.basic.BasicAuthClientProvider",
         chroma_client_auth_credentials="admin:admin1",
-    ):
-        yield item
+    )
     os.remove(server_auth_file)
 
 
@@ -387,17 +382,15 @@ def system_fixtures() -> List[Callable[[], Generator[System, None, None]]]:
 
 
 def system_fixtures_auth() -> List[Callable[[], Generator[System, None, None]]]:
-    fixtures = [
+    return [
         fastapi_server_basic_auth_param,
         fastapi_server_basic_auth_file,
         fastapi_server_basic_auth_shorthand,
     ]
-    return fixtures
 
 
 def system_fixtures_wrong_auth() -> List[Callable[[], Generator[System, None, None]]]:
-    fixtures = [fastapi_server_basic_auth_invalid_cred]
-    return fixtures
+    return [fastapi_server_basic_auth_invalid_cred]
 
 
 @pytest.fixture(scope="module", params=system_fixtures_wrong_auth())
@@ -420,8 +413,7 @@ def system_auth(request: pytest.FixtureRequest) -> Generator[ServerAPI, None, No
 @pytest.fixture(scope="function")
 def api(system: System) -> Generator[ServerAPI, None, None]:
     system.reset_state()
-    api = system.instance(ServerAPI)
-    yield api
+    yield system.instance(ServerAPI)
 
 
 @pytest.fixture(scope="function")
@@ -437,16 +429,14 @@ def api_wrong_cred(
     system_wrong_auth: System,
 ) -> Generator[ServerAPI, None, None]:
     system_wrong_auth.reset_state()
-    api = system_wrong_auth.instance(ServerAPI)
-    yield api
+    yield system_wrong_auth.instance(ServerAPI)
 
 
 @pytest.fixture(scope="function")
 def api_with_server_auth(system_auth: System) -> Generator[ServerAPI, None, None]:
     _sys = system_auth
     _sys.reset_state()
-    api = _sys.instance(ServerAPI)
-    yield api
+    yield _sys.instance(ServerAPI)
 
 
 # Producer / Consumer fixtures #

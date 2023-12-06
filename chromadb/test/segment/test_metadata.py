@@ -148,7 +148,7 @@ def test_insert_and_count(
 
     assert segment.count() == 3
 
-    for i in range(3):
+    for _ in range(3):
         max_id = producer.submit_embedding(topic, next(sample_embeddings))
 
     sync(segment, max_id)
@@ -196,8 +196,8 @@ def test_get(
     assert_equiv_records(embeddings, results)
 
     # get by ID
-    result = segment.get_metadata(ids=[e["id"] for e in embeddings[0:5]])
-    assert_equiv_records(embeddings[0:5], result)
+    result = segment.get_metadata(ids=[e["id"] for e in embeddings[:5]])
+    assert_equiv_records(embeddings[:5], result)
 
     # Get with limit and offset
     # Cannot rely on order(yet), but can rely on retrieving exactly the
@@ -302,7 +302,7 @@ def test_fulltext(
         where_document={"$and": [{"$contains": "four"}, {"$contains": "two"}]}
     )
     assert len(result) == 2
-    assert set([r["id"] for r in result]) == {"embedding_42", "embedding_24"}
+    assert {r["id"] for r in result} == {"embedding_42", "embedding_24"}
 
     # test $or
     result = segment.get_metadata(
@@ -310,8 +310,8 @@ def test_fulltext(
     )
     ones = [i for i in range(1, 100) if "one" in _build_document(i)]
     zeros = [i for i in range(1, 100) if "zero" in _build_document(i)]
-    expected = set([f"embedding_{i}" for i in set(ones + zeros)])
-    assert set([r["id"] for r in result]) == expected
+    expected = {f"embedding_{i}" for i in set(ones + zeros)}
+    assert {r["id"] for r in result} == expected
 
     # test combo with where clause (negative case)
     result = segment.get_metadata(
@@ -456,7 +456,7 @@ def _test_update(
 ) -> None:
     """test code common between update and upsert paths"""
 
-    embeddings = [next(sample_embeddings) for i in range(3)]
+    embeddings = [next(sample_embeddings) for _ in range(3)]
 
     max_id = 0
     for e in embeddings:

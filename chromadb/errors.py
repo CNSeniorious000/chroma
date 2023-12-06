@@ -13,7 +13,7 @@ class ChromaError(Exception, EnforceOverrides):
 
     @classmethod
     @abstractmethod
-    def name(self) -> str:
+    def name(cls) -> str:
         """Return the error name"""
         pass
 

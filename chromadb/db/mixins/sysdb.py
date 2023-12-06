@@ -131,10 +131,10 @@ class SqlSysDB(SqlDB, SysDB):
                 .where(tenants.id == ParameterValue(name))
             )
             sql, params = get_sql(q, self.parameter_format())
-            row = cur.execute(sql, params).fetchone()
-            if not row:
+            if row := cur.execute(sql, params).fetchone():
+                return Tenant(name=name)
+            else:
                 raise NotFoundError(f"Tenant {name} not found")
-            return Tenant(name=name)
 
     @override
     def create_segment(self, segment: Segment) -> None:
@@ -206,24 +206,24 @@ class SqlSysDB(SqlDB, SysDB):
             }
         )
 
-        existing = self.get_collections(name=name, tenant=tenant, database=database)
-        if existing:
-            if get_or_create:
-                collection = existing[0]
-                if metadata is not None and collection["metadata"] != metadata:
-                    self.update_collection(
-                        collection["id"],
-                        metadata=metadata,
-                    )
-                return (
-                    self.get_collections(
-                        id=collection["id"], tenant=tenant, database=database
-                    )[0],
-                    False,
-                )
-            else:
+        if existing := self.get_collections(
+            name=name, tenant=tenant, database=database
+        ):
+            if not get_or_create:
                 raise UniqueConstraintError(f"Collection {name} already exists")
 
+            collection = existing[0]
+            if metadata is not None and collection["metadata"] != metadata:
+                self.update_collection(
+                    collection["id"],
+                    metadata=metadata,
+                )
+            return (
+                self.get_collections(
+                    id=collection["id"], tenant=tenant, database=database
+                )[0],
+                False,
+            )
         topic = self._assignment_policy.assign_collection(id)
         collection = Collection(
             id=id,
@@ -472,7 +472,7 @@ class SqlSysDB(SqlDB, SysDB):
         with self.tx() as cur:
             # no need for explicit del from metadata table because of ON DELETE CASCADE
             sql, params = get_sql(q, self.parameter_format())
-            sql = sql + " RETURNING id"
+            sql = f"{sql} RETURNING id"
             result = cur.execute(sql, params).fetchone()
             if not result:
                 raise NotFoundError(f"Segment {id} not found")
@@ -510,7 +510,7 @@ class SqlSysDB(SqlDB, SysDB):
         with self.tx() as cur:
             # no need for explicit del from metadata table because of ON DELETE CASCADE
             sql, params = get_sql(q, self.parameter_format())
-            sql = sql + " RETURNING id, topic"
+            sql = f"{sql} RETURNING id, topic"
             result = cur.execute(sql, params).fetchone()
             if not result:
                 raise NotFoundError(f"Collection {id} not found")
@@ -540,10 +540,10 @@ class SqlSysDB(SqlDB, SysDB):
             .where(segments_t.id == ParameterValue(self.uuid_to_db(id)))
         )
 
-        if not topic == Unspecified():
+        if topic != Unspecified():
             q = q.set(segments_t.topic, ParameterValue(topic))
 
-        if not collection == Unspecified():
+        if collection != Unspecified():
             collection = cast(Optional[UUID], collection)
             q = q.set(
                 segments_t.collection, ParameterValue(self.uuid_to_db(collection))
@@ -599,19 +599,19 @@ class SqlSysDB(SqlDB, SysDB):
             .where(collections_t.id == ParameterValue(self.uuid_to_db(id)))
         )
 
-        if not topic == Unspecified():
+        if topic != Unspecified():
             q = q.set(collections_t.topic, ParameterValue(topic))
 
-        if not name == Unspecified():
+        if name != Unspecified():
             q = q.set(collections_t.name, ParameterValue(name))
 
-        if not dimension == Unspecified():
+        if dimension != Unspecified():
             q = q.set(collections_t.dimension, ParameterValue(dimension))
 
         with self.tx() as cur:
             sql, params = get_sql(q, self.parameter_format())
             if sql:  # pypika emits a blank string if nothing to do
-                sql = sql + " RETURNING id"
+                sql = f"{sql} RETURNING id"
                 result = cur.execute(sql, params)
                 if not result.fetchone():
                     raise NotFoundError(f"Collection {id} not found")

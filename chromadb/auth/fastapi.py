@@ -215,7 +215,6 @@ class FastAPIAuthorizationRequestContext(AuthorizationRequestContext[Request]):
 
     def __init__(self, request: Request) -> None:
         self._request = request
-        pass
 
     @override
     def get_request(self) -> Request:

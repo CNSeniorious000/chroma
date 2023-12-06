@@ -74,11 +74,11 @@ def pulsar() -> Generator[Tuple[Producer, Consumer], None, None]:
 
 
 def fixtures() -> List[Callable[[], Generator[Tuple[Producer, Consumer], None, None]]]:
-    fixtures = [sqlite, sqlite_persistent]
-    if "CHROMA_CLUSTER_TEST_ONLY" in os.environ:
-        fixtures = [pulsar]
-
-    return fixtures
+    return (
+        [pulsar]
+        if "CHROMA_CLUSTER_TEST_ONLY" in os.environ
+        else [sqlite, sqlite_persistent]
+    )
 
 
 @pytest.fixture(scope="module", params=fixtures())
@@ -133,14 +133,12 @@ class CapturingConsumeFn:
 
     async def get(self, n: int, timeout_secs: int = 10) -> Sequence[EmbeddingRecord]:
         "Wait until at least N embeddings are available, then return all embeddings"
-        if len(self.embeddings) >= n:
-            return self.embeddings[:n]
-        else:
+        if len(self.embeddings) < n:
             event = Event()
             self.waiters.append((n, event))
             # timeout so we don't hang forever on failure
             await wait_for(event.wait(), timeout_secs)
-            return self.embeddings[:n]
+        return self.embeddings[:n]
 
 
 def assert_approx_equal(a: Sequence[float], b: Sequence[float]) -> None:
@@ -362,7 +360,7 @@ async def test_multiple_topics_batch(
     PRODUCE_BATCH_SIZE = 10
     N_TO_PRODUCE = 100
     total_produced = 0
-    for i in range(N_TO_PRODUCE // PRODUCE_BATCH_SIZE):
+    for _ in range(N_TO_PRODUCE // PRODUCE_BATCH_SIZE):
         for n in range(N_TOPICS):
             embeddings_n[n].extend(
                 produce_fns(

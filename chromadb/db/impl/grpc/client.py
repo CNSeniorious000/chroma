@@ -165,10 +165,7 @@ class GrpcSysDB(SysDB):
         collection: OptionalArgument[Optional[UUID]] = Unspecified(),
         metadata: OptionalArgument[Optional[UpdateMetadata]] = Unspecified(),
     ) -> None:
-        write_topic = None
-        if topic != Unspecified():
-            write_topic = cast(Union[str, None], topic)
-
+        write_topic = cast(Union[str, None], topic) if topic != Unspecified() else None
         write_collection = None
         if collection != Unspecified():
             write_collection = cast(Union[UUID, None], collection)
@@ -256,9 +253,10 @@ class GrpcSysDB(SysDB):
             database=database,
         )
         response: GetCollectionsResponse = self._sys_db_stub.GetCollections(request)
-        results: List[Collection] = []
-        for collection in response.collections:
-            results.append(from_proto_collection(collection))
+        results: List[Collection] = [
+            from_proto_collection(collection)
+            for collection in response.collections
+        ]
         return results
 
     @overrides
@@ -270,14 +268,8 @@ class GrpcSysDB(SysDB):
         dimension: OptionalArgument[Optional[int]] = Unspecified(),
         metadata: OptionalArgument[Optional[UpdateMetadata]] = Unspecified(),
     ) -> None:
-        write_topic = None
-        if topic != Unspecified():
-            write_topic = cast(str, topic)
-
-        write_name = None
-        if name != Unspecified():
-            write_name = cast(str, name)
-
+        write_topic = cast(str, topic) if topic != Unspecified() else None
+        write_name = cast(str, name) if name != Unspecified() else None
         write_dimension = None
         if dimension != Unspecified():
             write_dimension = cast(Union[int, None], dimension)

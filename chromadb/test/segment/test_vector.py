@@ -338,7 +338,7 @@ def test_delete(
     )
     knn_results = segment.query_vectors(query)
     assert len(results) == 4
-    assert set(r["id"] for r in knn_results[0]) == set(e["id"] for e in embeddings[1:])
+    assert {r["id"] for r in knn_results[0]} == {e["id"] for e in embeddings[1:]}
 
     # Delete is idempotent
     seq_ids.append(
@@ -364,12 +364,11 @@ def _test_update(
 ) -> None:
     """Tests the common code paths between update & upsert"""
 
-    embeddings = [next(sample_embeddings) for i in range(3)]
+    embeddings = [next(sample_embeddings) for _ in range(3)]
 
-    seq_ids: List[SeqId] = []
-    for e in embeddings:
-        seq_ids.append(producer.submit_embedding(topic, e))
-
+    seq_ids: List[SeqId] = [
+        producer.submit_embedding(topic, e) for e in embeddings
+    ]
     sync(segment, seq_ids[-1])
     assert segment.count() == 3
 
@@ -587,7 +586,7 @@ def test_delete_with_local_segment_storage(
     )
     knn_results = segment.query_vectors(query)
     assert len(results) == 4
-    assert set(r["id"] for r in knn_results[0]) == set(e["id"] for e in embeddings[1:])
+    assert {r["id"] for r in knn_results[0]} == {e["id"] for e in embeddings[1:]}
 
     # Delete is idempotent
     if isinstance(segment, PersistentLocalHnswSegment):
@@ -663,7 +662,7 @@ def test_reset_state_ignored_for_allow_reset_false(
     )
     knn_results = segment.query_vectors(query)
     assert len(results) == 4
-    assert set(r["id"] for r in knn_results[0]) == set(e["id"] for e in embeddings[1:])
+    assert {r["id"] for r in knn_results[0]} == {e["id"] for e in embeddings[1:]}
 
     if isinstance(segment, PersistentLocalHnswSegment):
         if segment._allow_reset:

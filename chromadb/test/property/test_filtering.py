@@ -27,12 +27,7 @@ def _filter_where_clause(clause: Where, metadata: Metadata) -> bool:
     key, expr = list(clause.items())[0]
 
     # Handle the shorthand for equal: {key: val} where val is a simple value
-    if (
-        isinstance(expr, str)
-        or isinstance(expr, bool)
-        or isinstance(expr, int)
-        or isinstance(expr, float)
-    ):
+    if isinstance(expr, (str, bool, int, float)):
         return _filter_where_clause({key: {"$eq": expr}}, metadata)
 
     # expr is a list of clauses
@@ -59,16 +54,16 @@ def _filter_where_clause(clause: Where, metadata: Metadata) -> bool:
     metadata_key = metadata[key]
     if op == "$eq":
         return key in metadata and metadata_key == val
-    elif op == "$ne":
-        return key in metadata and metadata_key != val
     elif op == "$in":
         return key in metadata and metadata_key in val
+    elif op == "$ne":
+        return key in metadata and metadata_key != val
     elif op == "$nin":
         return key in metadata and metadata_key not in val
 
     # The following conditions only make sense for numeric values
-    assert isinstance(metadata_key, int) or isinstance(metadata_key, float)
-    assert isinstance(val, int) or isinstance(val, float)
+    assert isinstance(metadata_key, (int, float))
+    assert isinstance(val, (int, float))
     if op == "$gt":
         return (key in metadata) and (metadata_key > val)
     elif op == "$gte":
@@ -78,7 +73,7 @@ def _filter_where_clause(clause: Where, metadata: Metadata) -> bool:
     elif op == "$lte":
         return key in metadata and metadata_key <= val
     else:
-        raise ValueError("Unknown operator: {}".format(key))
+        raise ValueError(f"Unknown operator: {key}")
 
 
 def _filter_where_doc_clause(clause: WhereDocument, doc: Document) -> bool:
@@ -93,15 +88,14 @@ def _filter_where_doc_clause(clause: WhereDocument, doc: Document) -> bool:
 
     # Simple $contains clause
     assert isinstance(expr, str)
-    if key == "$contains":
-        # SQLite FTS handles % and _ as word boundaries that are ignored so we need to
-        # treat them as wildcards
-        if "%" in expr or "_" in expr:
-            expr = expr.replace("%", ".").replace("_", ".")
-            return re.search(expr, doc) is not None
-        return expr in doc
-    else:
-        raise ValueError("Unknown operator: {}".format(key))
+    if key != "$contains":
+        raise ValueError(f"Unknown operator: {key}")
+    # SQLite FTS handles % and _ as word boundaries that are ignored so we need to
+    # treat them as wildcards
+    if "%" in expr or "_" in expr:
+        expr = expr.replace("%", ".").replace("_", ".")
+        return re.search(expr, doc) is not None
+    return expr in doc
 
 
 EMPTY_DICT: Dict[Any, Any] = {}

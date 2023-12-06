@@ -177,10 +177,7 @@ class SqliteDB(MigratableDB, SqlEmbeddingsQueue, SqlSysDB):
                 WHERE type='table' AND name='migrations'"""
             )
 
-            if cur.fetchone()[0] == 0:
-                return False
-            else:
-                return True
+            return cur.fetchone()[0] != 0
 
     @trace_method("SqliteDB.db_migrations", OpenTelemetryGranularity.ALL)
     @override

@@ -13,7 +13,7 @@ def find_key_with_value_of_type(
         CreateTenant,
     )
 
-    for key, value in kwargs.items():
+    for value in kwargs.values():
         if type == AuthzResourceTypes.DB and isinstance(value, CreateDatabase):
             return dict(value)
         elif type == AuthzResourceTypes.COLLECTION and isinstance(

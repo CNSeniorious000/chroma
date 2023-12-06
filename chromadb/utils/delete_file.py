@@ -16,7 +16,7 @@ def delete_file(name: str) -> None:
 
     chars = list("abcdefghijklmn")
     random.shuffle(chars)
-    newname = name + "-n-" + "".join(chars)
+    newname = f"{name}-n-" + "".join(chars)
     count = 0
     while os.path.exists(name):
         count += 1
@@ -28,9 +28,7 @@ def delete_file(name: str) -> None:
                 random.shuffle(n)
                 final_name = "".join(n)
                 try:
-                    os.rename(
-                        name, "chroma-to-clean" + final_name + ".deletememanually"
-                    )
+                    os.rename(name, f"chroma-to-clean{final_name}.deletememanually")
                 except Exception:
                     pass
                 break

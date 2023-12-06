@@ -9,10 +9,10 @@ def pulsar_to_int(message_id: pulsar.MessageId) -> int:
 
     # Convert to offset binary encoding to preserve ordering semantics when encoded
     # see https://en.wikipedia.org/wiki/Offset_binary
-    ledger_id = ledger_id + 2**63
-    entry_id = entry_id + 2**63
-    batch_index = batch_index + 2**31
-    partition = partition + 2**31
+    ledger_id += 2**63
+    entry_id += 2**63
+    batch_index += 2**31
+    partition += 2**31
 
     return ledger_id << 128 | entry_id << 64 | batch_index << 32 | partition
 
@@ -50,10 +50,7 @@ base85 = (
 
 # not the most efficient way to do this, see benchmark function below
 def _int_to_str(n: int) -> str:
-    if n < 85:
-        return base85[n]
-    else:
-        return _int_to_str(n // 85) + base85[n % 85]
+    return base85[n] if n < 85 else _int_to_str(n // 85) + base85[n % 85]
 
 
 def int_to_str(n: int) -> str:
@@ -71,7 +68,7 @@ def _benchmark() -> None:
     import time
 
     t0 = time.time()
-    for i in range(1000000):
+    for _ in range(1000000):
         x = random.randint(0, 2**192 - 1)
         s = int_to_str(x)
         if s == "!":  # prevent compiler from optimizing out

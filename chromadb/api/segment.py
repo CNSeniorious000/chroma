@@ -241,11 +241,9 @@ class SegmentAPI(ServerAPI):
     ) -> Collection:
         if id is None and name is None or (id is not None and name is not None):
             raise ValueError("Name or id must be specified, but not both")
-        existing = self._sysdb.get_collections(
+        if existing := self._sysdb.get_collections(
             id=id, name=name, tenant=tenant, database=database
-        )
-
-        if existing:
+        ):
             return Collection(
                 client=self,
                 id=existing[0]["id"],
@@ -266,20 +264,18 @@ class SegmentAPI(ServerAPI):
         tenant: str = DEFAULT_TENANT,
         database: str = DEFAULT_DATABASE,
     ) -> Sequence[Collection]:
-        collections = []
         db_collections = self._sysdb.get_collections(tenant=tenant, database=database)
-        for db_collection in db_collections:
-            collections.append(
-                Collection(
-                    client=self,
-                    id=db_collection["id"],
-                    name=db_collection["name"],
-                    metadata=db_collection["metadata"],  # type: ignore
-                    tenant=db_collection["tenant"],
-                    database=db_collection["database"],
-                )
+        return [
+            Collection(
+                client=self,
+                id=db_collection["id"],
+                name=db_collection["name"],
+                metadata=db_collection["metadata"],  # type: ignore
+                tenant=db_collection["tenant"],
+                database=db_collection["database"],
             )
-        return collections
+            for db_collection in db_collections
+        ]
 
     @trace_method("SegmentAPI._modify", OpenTelemetryGranularity.OPERATION)
     @override
@@ -313,20 +309,19 @@ class SegmentAPI(ServerAPI):
         tenant: str = DEFAULT_TENANT,
         database: str = DEFAULT_DATABASE,
     ) -> None:
-        existing = self._sysdb.get_collections(
-            name=name, tenant=tenant, database=database
-        )
-
-        if existing:
-            self._sysdb.delete_collection(
-                existing[0]["id"], tenant=tenant, database=database
+        if not (
+            existing := self._sysdb.get_collections(
+                name=name, tenant=tenant, database=database
             )
-            for s in self._manager.delete_segments(existing[0]["id"]):
-                self._sysdb.delete_segment(s)
-            if existing and existing[0]["id"] in self._collection_cache:
-                del self._collection_cache[existing[0]["id"]]
-        else:
+        ):
             raise ValueError(f"Collection {name} does not exist.")
+        self._sysdb.delete_collection(
+            existing[0]["id"], tenant=tenant, database=database
+        )
+        for s in self._manager.delete_segments(existing[0]["id"]):
+            self._sysdb.delete_segment(s)
+        if existing and existing[0]["id"] in self._collection_cache:
+            del self._collection_cache[existing[0]["id"]]
 
     @trace_method("SegmentAPI._add", OpenTelemetryGranularity.OPERATION)
     @override
@@ -572,12 +567,9 @@ class SegmentAPI(ServerAPI):
 
         # You must have at least one of non-empty ids, where, or where_document.
         if (
-            (ids is None or (ids is not None and len(ids) == 0))
-            and (where is None or (where is not None and len(where) == 0))
-            and (
-                where_document is None
-                or (where_document is not None and len(where_document) == 0)
-            )
+            (ids is None or len(ids) == 0)
+            and (where is None or len(where) == 0)
+            and (where_document is None or len(where_document) == 0)
         ):
             raise ValueError(
                 """
@@ -804,12 +796,12 @@ class SegmentAPI(ServerAPI):
     def _get_collection(self, collection_id: UUID) -> t.Collection:
         """Read-through cache for collection data"""
         if collection_id not in self._collection_cache:
-            collections = self._sysdb.get_collections(id=collection_id)
-            if not collections:
+            if collections := self._sysdb.get_collections(id=collection_id):
+                self._collection_cache[collection_id] = collections[0]
+            else:
                 raise InvalidCollectionException(
                     f"Collection {collection_id} does not exist."
                 )
-            self._collection_cache[collection_id] = collections[0]
         return self._collection_cache[collection_id]
 
 
@@ -843,12 +835,8 @@ def _records(
 
         if uris:
             uri = uris[i]
-            if metadata:
-                metadata = {**metadata, "chroma:uri": uri}
-            else:
-                metadata = {"chroma:uri": uri}
-
-        record = t.SubmitEmbeddingRecord(
+            metadata = {**metadata, "chroma:uri": uri} if metadata else {"chroma:uri": uri}
+        yield t.SubmitEmbeddingRecord(
             id=id,
             embedding=embeddings[i] if embeddings else None,
             encoding=t.ScalarEncoding.FLOAT32,  # Hardcode for now
@@ -856,7 +844,6 @@ def _records(
             operation=operation,
             collection_id=collection_id,
         )
-        yield record
 
 
 def _doc(metadata: Optional[t.Metadata]) -> Optional[str]:
@@ -888,10 +875,5 @@ def _clean_metadata(metadata: Optional[t.Metadata]) -> Optional[t.Metadata]:
     metadata map."""
     if not metadata:
         return None
-    result = {}
-    for k, v in metadata.items():
-        if not k.startswith("chroma:"):
-            result[k] = v
-    if len(result) == 0:
-        return None
-    return result
+    result = {k: v for k, v in metadata.items() if not k.startswith("chroma:")}
+    return None if not result else result

@@ -26,11 +26,11 @@ persistent_param_validators: Dict[str, Validator] = {
 class Params:
     @staticmethod
     def _select(metadata: Metadata) -> Dict[str, Any]:
-        segment_metadata = {}
-        for param, value in metadata.items():
-            if param.startswith("hnsw:"):
-                segment_metadata[param] = value
-        return segment_metadata
+        return {
+            param: value
+            for param, value in metadata.items()
+            if param.startswith("hnsw:")
+        }
 
     @staticmethod
     def _validate(metadata: Dict[str, Any], validators: Dict[str, Validator]) -> None:

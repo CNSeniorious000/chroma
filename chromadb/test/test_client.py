@@ -17,9 +17,7 @@ def ephemeral_api() -> Generator[ClientAPI, None, None]:
 
 @pytest.fixture
 def persistent_api() -> Generator[ClientAPI, None, None]:
-    client = chromadb.PersistentClient(
-        path=tempfile.gettempdir() + "/test_server",
-    )
+    client = chromadb.PersistentClient(path=f"{tempfile.gettempdir()}/test_server")
     yield client
     client.clear_system_cache()
 

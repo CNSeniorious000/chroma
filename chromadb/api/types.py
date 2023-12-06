@@ -29,11 +29,7 @@ URIs = List[URI]
 
 
 def maybe_cast_one_to_many_uri(target: OneOrMany[URI]) -> URIs:
-    if isinstance(target, str):
-        # One URI
-        return cast(URIs, [target])
-    # Already a sequence
-    return cast(URIs, target)
+    return cast(URIs, [target]) if isinstance(target, str) else cast(URIs, target)
 
 
 # IDs
@@ -42,11 +38,7 @@ IDs = List[ID]
 
 
 def maybe_cast_one_to_many_ids(target: OneOrMany[ID]) -> IDs:
-    if isinstance(target, str):
-        # One ID
-        return cast(IDs, [target])
-    # Already a sequence
-    return cast(IDs, target)
+    return cast(IDs, [target]) if isinstance(target, str) else cast(IDs, target)
 
 
 # Embeddings
@@ -84,9 +76,7 @@ Documents = List[Document]
 
 
 def is_document(target: Any) -> bool:
-    if not isinstance(target, str):
-        return False
-    return True
+    return isinstance(target, str)
 
 
 def maybe_cast_one_to_many_document(target: OneOrMany[Document]) -> Documents:
@@ -104,18 +94,11 @@ Images = List[Image]
 
 
 def is_image(target: Any) -> bool:
-    if not isinstance(target, np.ndarray):
-        return False
-    if len(target.shape) < 2:
-        return False
-    return True
+    return False if not isinstance(target, np.ndarray) else len(target.shape) >= 2
 
 
 def maybe_cast_one_to_many_image(target: OneOrMany[Image]) -> Images:
-    if is_image(target):
-        return cast(Images, [target])
-    # Already a sequence
-    return cast(Images, target)
+    return cast(Images, [target]) if is_image(target) else cast(Images, target)
 
 
 Parameter = TypeVar("Parameter", Document, Image, Embedding, Metadata, ID)
@@ -206,7 +189,7 @@ def validate_embedding_function(
     ).parameters.keys()
     protocol_signature = signature(EmbeddingFunction.__call__).parameters.keys()
 
-    if not function_signature == protocol_signature:
+    if function_signature != protocol_signature:
         raise ValueError(
             f"Expected EmbeddingFunction.__call__ to have the following signature: {protocol_signature}, got {function_signature}\n"
             "Please see https://docs.trychroma.com/embeddings for details of the EmbeddingFunction interface.\n"
@@ -329,7 +312,7 @@ def validate_where(where: Where) -> Where:
             raise ValueError(
                 f"Expected where value to be a str, int, float, or operator expression, got {value}"
             )
-        if key == "$and" or key == "$or":
+        if key in ["$and", "$or"]:
             if not isinstance(value, list):
                 raise ValueError(
                     f"Expected where value for $and or $or to be a list of where expressions, got {value}"
@@ -408,7 +391,7 @@ def validate_where_document(where_document: WhereDocument) -> WhereDocument:
             raise ValueError(
                 f"Expected where document operator to be one of $contains, $and, $or, got {operator}"
             )
-        if operator == "$and" or operator == "$or":
+        if operator in ["$and", "$or"]:
             if not isinstance(operand, list):
                 raise ValueError(
                     f"Expected document value for $and or $or to be a list of where document expressions, got {operand}"
@@ -419,7 +402,6 @@ def validate_where_document(where_document: WhereDocument) -> WhereDocument:
                 )
             for where_document_expression in operand:
                 validate_where_document(where_document_expression)
-        # Value is a $contains operator
         elif not isinstance(operand, str):
             raise ValueError(
                 f"Expected where document operand value for operator $contains to be a str, got {operand}"
@@ -472,12 +454,12 @@ def validate_embeddings(embeddings: Embeddings) -> Embeddings:
         raise ValueError(
             f"Expected embeddings to be a list with at least one item, got {embeddings}"
         )
-    if not all([isinstance(e, list) for e in embeddings]):
+    if not all(isinstance(e, list) for e in embeddings):
         raise ValueError(
             f"Expected each embedding in the embeddings to be a list, got {embeddings}"
         )
     for embedding in embeddings:
-        if not all([isinstance(value, (int, float)) for value in embedding]):
+        if not all(isinstance(value, (int, float)) for value in embedding):
             raise ValueError(
                 f"Expected each value in the embedding to be a int or float, got {embeddings}"
             )

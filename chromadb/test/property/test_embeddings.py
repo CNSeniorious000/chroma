@@ -102,10 +102,9 @@ class EmbeddingStateMachine(RuleBasedStateMachine):
                 self.collection.add(**normalized_record_set)
             return multiple()
 
-        intersection = set(normalized_record_set["ids"]).intersection(
+        if intersection := set(normalized_record_set["ids"]).intersection(
             self.record_set_state["ids"]
-        )
-        if len(intersection) > 0:
+        ):
             # Partially apply the non-duplicative records to the state
             new_ids = list(set(normalized_record_set["ids"]).difference(intersection))
             indices = [normalized_record_set["ids"].index(id) for id in new_ids]
@@ -340,7 +339,7 @@ def test_query_without_add(api: ServerAPI) -> None:
     for field in fields:
         field_results = results[field]
         assert field_results is not None
-        assert all([len(result) == 0 for result in field_results])
+        assert all(len(result) == 0 for result in field_results)
 
 
 def test_get_non_existent(api: ServerAPI) -> None:
